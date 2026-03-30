@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title> Premium Coffee </title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      /* ===== HOMEPAGE SPECIFIC STYLES ===== */
+
+      /* Hero Section */
+      .hero-section {
+        position: relative;
+        height: 80vh;
+        min-height: 600px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: linear-gradient(
+          135deg,
+          #0a0a0b 0%,
+          #1a1a1c 50%,
+          #0a0a0b 100%
+        );
+        overflow: hidden;
+      }
+
+      .hero-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(212,175,55,0.03)"/><circle cx="75" cy="75" r="1" fill="rgba(212,175,55,0.03)"/><circle cx="50" cy="10" r="0.5" fill="rgba(198,124,78,0.02)"/><circle cx="10" cy="50" r="0.5" fill="rgba(198,124,78,0.02)"/><circle cx="90" cy="30" r="0.5" fill="rgba(198,124,78,0.02)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 800px;
+        padding: 0 var(--space-lg);
+        opacity: 0;
+        transform: translateY(30px);
+        animation: heroFadeIn 1s ease-out 0.3s forwards;
+      }
+
+      .hero-title {
+        font-family: var(--font-serif);
+        font-size: clamp(3rem, 8vw, 6rem);
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-md);
+        line-height: 1.1;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: heroFadeIn 1s ease-out 0.5s forwards;
+      }
+
+      .hero-subtitle {
+        font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-2xl);
+        font-weight: 400;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: heroFadeIn 1s ease-out 0.7s forwards;
+      }
+
+      .hero-cta {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: heroFadeIn 1s ease-out 0.9s forwards;
+      }
+
+      @keyframes heroFadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Features Section */
+      .features-section {
+        padding: var(--space-5xl) 0;
+        background: var(--color-surface-l0);
+        padding-top: calc(var(--space-5xl) + 20px);
+      }
+
+      .features-container {
+        max-width: var(--max-width);
+        margin: 0 auto;
+        padding: 0 var(--container-padding);
+      }
+
+      .features-title {
+        font-family: var(--font-serif);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        text-align: center;
+        margin-bottom: var(--space-3xl);
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: var(--space-xl);
+        margin-top: var(--space-2xl);
+      }
+
+      .feature-card {
+        background: var(--color-surface-l1);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl);
+        text-align: center;
+        transition: all var(--transition-fast) var(--easing-primary);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .feature-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(212, 175, 55, 0.05) 0%,
+          transparent 50%
+        );
+        opacity: 0;
+        transition: opacity var(--transition-fast) var(--easing-primary);
+      }
+
+      .feature-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: var(--shadow-lg), var(--glow-gold);
+        border-color: var(--color-metallic-gold);
+      }
+
+      .feature-card:hover::before {
+        opacity: 1;
+      }
+
+      .feature-image {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto var(--space-lg);
+        border-radius: 50%;
+        background: var(--color-surface-l2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        transition: all var(--transition-fast) var(--easing-primary);
+      }
+
+      .feature-card:hover .feature-image {
+        transform: scale(1.1);
+        background: var(--color-metallic-gold);
+        color: var(--color-surface-l0);
+      }
+
+      .feature-title {
+        font-family: var(--font-serif);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-sm);
+      }
+
+      .feature-description {
+        color: var(--color-text-secondary);
+        line-height: 1.6;
+      }
+
+      /* Products Section */
+      .products-section {
+        padding: var(--space-5xl) 0;
+        background: var(--color-surface-l0);
+        padding-top: calc(var(--space-5xl) + 20px);
+      }
+
+      .products-container {
+        max-width: var(--max-width);
+        margin: 0 auto;
+        padding: 0 var(--container-padding);
+      }
+
+      .products-title {
+        font-family: var(--font-serif);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        text-align: center;
+        margin-bottom: var(--space-3xl);
+      }
+
+      .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--space-xl);
+        margin-top: var(--space-2xl);
+      }
+
+      .product-card {
+        background: var(--color-surface-l1);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all var(--transition-fast) var(--easing-primary);
+        cursor: pointer;
+        position: relative;
+      }
+
+      .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-lg), var(--glow-accent);
+        border-color: var(--color-primary-accent);
+      }
+
+      .product-image {
+        width: 100%;
+        height: 240px;
+        object-fit: cover;
+        transition: all var(--transition-fast) var(--easing-primary);
+      }
+
+      .product-card:hover .product-image {
+        transform: scale(1.05);
+      }
+
+      .product-content {
+        padding: var(--space-lg);
+      }
+
+      .product-name {
+        font-family: var(--font-serif);
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-xs);
+      }
+
+      .product-description {
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: var(--space-md);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .product-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .product-price {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-metallic-gold);
+      }
+
+      .add-to-cart-btn {
+        background: var(--color-primary-accent);
+        color: var(--color-text-primary);
+        border: none;
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast) var(--easing-primary);
+        opacity: 0.9;
+        transform: scale(0.95);
+      }
+
+      .product-card:hover .add-to-cart-btn {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: var(--glow-accent);
+      }
+
+      .add-to-cart-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(198, 124, 78, 0.4);
+      }
+
+      .add-to-cart-btn:active {
+        transform: scale(0.95);
+        transition: transform 100ms var(--easing-primary);
+      }
+
+      /* Cart Animation */
+      .cart-float {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--color-success);
+        color: white;
+        padding: var(--space-sm) var(--space-md);
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        z-index: 1000;
+        animation: cartFloat 0.5s ease-out forwards;
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      @keyframes cartFloat {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Stagger animations for sections */
+      .features-section,
+      .products-section {
+        opacity: 0;
+        transform: translateY(30px);
+        animation: sectionFadeIn 0.8s ease-out forwards;
+      }
+
+      .features-section {
+        animation-delay: 0.2s;
+      }
+
+      .products-section {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes sectionFadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .hero-section {
+          height: 70vh;
+          min-height: 500px;
+        }
+
+        .hero-title {
+          font-size: clamp(2.5rem, 10vw, 4rem);
+        }
+
+        .features-grid,
+        .products-grid {
+          grid-template-columns: 1fr;
+          gap: var(--space-lg);
+        }
+
+        .feature-card,
+        .product-card {
+          margin: 0 var(--space-md);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="navbar"></header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero-section" style="padding-top: 90px">
+        <div class="hero-content">
+          <h1 class="hero-title">Premium Coffee</h1>
+          <p class="hero-subtitle">
+            Experience the art of exceptional coffee, crafted for the discerning
+            palate
+          </p>
+          <div class="hero-cta">
+            <button
+              class="btn btn-primary btn-large"
+              onclick="
+                document
+                  .getElementById('products-section')
+                  .scrollIntoView({ behavior: 'smooth' })
+              "
+            >
+              Order Now
+              <span style="margin-left: 8px">→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section class="features-section">
+        <div class="features-container">
+          <h2 class="features-title">Our Signature Collections</h2>
+          <div class="features-grid">
+            <div class="feature-card">
+              <div class="feature-image">☕</div>
+              <h3 class="feature-title">Premium Espresso</h3>
+              <p class="feature-description">
+                Bold, rich, and perfectly extracted shots from the finest beans,
+                delivering an unparalleled coffee experience.
+              </p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-image">🥛</div>
+              <h3 class="feature-title">Artisan Lattes</h3>
+              <p class="feature-description">
+                Velvety steamed milk artfully combined with our signature
+                espresso blends for a luxurious morning ritual.
+              </p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-image">🫘</div>
+              <h3 class="feature-title">Single Origin Beans</h3>
+              <p class="feature-description">
+                Ethically sourced, expertly roasted beans that tell the story of
+                their origin through every sip.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Products Section -->
+      <section id="products-section" class="products-section">
+        <div class="products-container">
+          <h2 class="products-title">Featured Menu</h2>
+          <div id="products" class="products-grid">
+            <!-- Products will be dynamically inserted here -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Cart Sidebar -->
+    <div id="cart">
+      <h3
+        style="
+          margin-bottom: 15px;
+          border-bottom: 1px solid #333;
+          padding-bottom: 10px;
+        "
+      >
+        Your Cart
+      </h3>
+      <div class="cart-list"></div>
+      <div
+        style="
+          margin-top: 15px;
+          display: flex;
+          justify-content: space-between;
+          font-weight: bold;
+        "
+      >
+        <span>Total:</span>
+        <span class="cart-total">0đ</span>
+      </div>
+      <button
+        class="bg-gold"
+        style="
+          width: 100%;
+          padding: 12px;
+          border-radius: 8px;
+          margin-top: 15px;
+          font-weight: bold;
+        "
+      >
+        Checkout
+      </button>
+    </div>
+
+    <div id="toast"></div>
+
+    <script type="module" src="../js/main.js"></script>
+  </body>
+</html>

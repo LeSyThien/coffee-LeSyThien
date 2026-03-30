@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() && request.auth.token.admin == true;
+    }
+
+    // ===== USERS =====
+    match /users/{userId} {
+
+      allow read: if request.auth.uid == userId || isAdmin();
+
+      // ✅ STRICT: Separate permissions for Users vs Admins
+      allow update: if (
+        // Regular users can only update their profile
+        request.auth.uid == userId
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "name", "phone", "updatedAt"
+        ])
+      ) || (
+        // Admins can update balance and other fields when processing transactions
+        isAdmin()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "name", "phone", "updatedAt", "balance", "role"
+        ])
+      );
+
+      // admin full quyền (bao gồm balance)
+      // ⚠️ SECURITY: Role/Admin status should ONLY be set via Cloud Functions
+      // Never trust client to set these fields
+      allow write: if isAdmin();
+    }
+
+    // ===== PRODUCTS =====
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ===== ORDERS =====
+    match /orders/{orderId} {
+
+      // ✅ STRICT: Validate required fields and prevent injection
+      // ⚠️ NOTE: Total price is NOT validated here (client-provided)
+      // In production, use Cloud Function to calculate total from items
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.total > 0
+        && request.resource.data.items.size() > 0
+        && request.resource.data.keys().hasOnly([
+          "userId", "items", "total", "status", "createdAt", "updatedAt"
+        ]);
+
+      allow read: if request.auth.uid == resource.data.userId
+                  || isAdmin();
+
+      // ✅ Only admin can update (prevent user from marking own order as completed)
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ===== TRANSACTIONS =====
+    match /transactions/{txId} {
+
+      // ✅ STRICT: Validate all required fields + prevent injection
+      // ⚠️ IMPORTANT: Amount is user-provided. In production, verify via Cloud Function
+      // that amount matches order total for payment transactions
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.amount > 0
+        && request.resource.data.status == "pending"
+        && request.resource.data.type in ["deposit", "payment"]
+        && (
+          (request.resource.data.type == "deposit")
+          || (request.resource.data.type == "payment"
+              && request.resource.data.orderId is string)
+        )
+        && request.resource.data.keys().hasOnly([
+          "userId", "amount", "status", "type", "orderId", "createdAt"
+        ]);
+
+      allow read: if request.auth.uid == resource.data.userId
+                  || isAdmin();
+
+      // ✅ STRICT: Admin can only update status and updatedAt
+      // Prevents admin from accidentally modifying amount
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "status", "updatedAt"
+        ]);
+    }
+
+    // ===== NOTIFICATIONS =====
+    match /notifications/{id} {
+      // ✅ STRICT: User can create for themselves, admin can create for anyone
+      // Allows admin to send notifications (e.g., transaction approved/rejected)
+      allow create: if isAuth()
+        && (request.resource.data.userId == request.auth.uid || isAdmin())
+        && request.resource.data.keys().hasOnly([
+          "userId", "type", "message", "createdAt", "read"
+        ]);
+
+      // User can read their own, admin can read all
+      allow read: if request.auth.uid == resource.data.userId || isAdmin();
+
+      // User can mark own as read, admin can update
+      allow update: if (request.auth.uid == resource.data.userId
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(["read"]))
+        || isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // ===== DEFAULT DENY =====
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

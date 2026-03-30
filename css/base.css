@@ -1,0 +1,157 @@
+/* ===== FONT IMPORTS ===== */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600;700&display=swap");
+
+/* ===== RESET ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== ROOT & BODY ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-regular);
+  background-color: var(--color-surface-l0);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ===== TYPOGRAPHY ===== */
+/* Headings use Playfair Display for prestige */
+h1,
+.h1 {
+  font-family: var(--font-serif);
+  font-size: 48px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+h2,
+.h2 {
+  font-family: var(--font-serif);
+  font-size: 40px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+h3,
+.h3 {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+}
+
+h4,
+.h4 {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.25px;
+  line-height: 1.4;
+}
+
+h5,
+.h5 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.25px;
+  line-height: 1.4;
+}
+
+h6,
+.h6 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.25px;
+  line-height: 1.5;
+}
+
+p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+p.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+p.text-muted {
+  color: var(--color-text-muted);
+}
+
+/* ===== LINKS ===== */
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: color var(--transition-fast) var(--easing-primary);
+}
+
+a:hover {
+  color: var(--color-primary-accent);
+}
+
+/* ===== BUTTONS ===== */
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+}
+
+/* ===== INPUTS ===== */
+input,
+textarea,
+select {
+  font-family: inherit;
+  border: none;
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ===== FORM ELEMENTS ===== */
+label {
+  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+/* ===== UTILITIES ===== */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

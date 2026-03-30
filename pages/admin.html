@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | Gilded Bean</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0a0a0b;
+        color: #fff;
+        font-family: "Inter", system-ui, sans-serif;
+        display: none; /* Hide until auth check completes */
+        overflow-x: hidden;
+      }
+      #navbar {
+        display: none;
+      }
+
+      .admin-wrapper {
+        display: flex;
+        min-height: 100vh;
+      }
+      .admin-sidebar {
+        width: 260px;
+        position: fixed;
+        inset: 0 auto auto 0;
+        background: #0a0a0b;
+        border-right: 1px solid #1c1c1e;
+        padding: 32px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar-brand {
+        color: #d4af37;
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 24px;
+      }
+      .sidebar-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .sidebar-btn {
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #808080;
+        text-align: left;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .sidebar-btn:hover {
+        background: #121214;
+        color: #fff;
+        transform: translateX(2px);
+      }
+      .sidebar-btn.active {
+        background: #121214;
+        color: #d4af37;
+      }
+      .sidebar-btn.active::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: #d4af37;
+        border-radius: 0 2px 2px 0;
+      }
+      .sidebar-btn {
+        position: relative;
+      }
+
+      .admin-main {
+        margin-left: 260px;
+        width: calc(100% - 260px);
+      }
+      .admin-topbar {
+        position: fixed;
+        top: 0;
+        left: 260px;
+        right: 0;
+        height: 72px;
+        background: #121214;
+        border-bottom: 1px solid #1c1c1e;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        z-index: 999;
+      }
+      .topbar-search {
+        width: 420px;
+      }
+      .topbar-search input {
+        width: 100%;
+        height: 44px;
+        border-radius: 22px;
+        border: 1px solid #1c1c1e;
+        background: #0a0a0b;
+        color: #fff;
+        padding: 0 16px;
+        font-size: 14px;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .topbar-search input:focus {
+        outline: none;
+        border-color: #d4af37;
+        box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+      }
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid #1c1c1e;
+        background: #0a0a0b;
+        color: #808080;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+      }
+      .icon-btn:hover {
+        background: #1c1c1e;
+        border-color: #d4af37;
+        color: #d4af37;
+        transform: scale(1.05);
+      }
+      .icon-btn:active {
+        transform: scale(0.98);
+      }
+      .avatar-btn {
+        background: linear-gradient(135deg, #d4af37, #c67c4e);
+        color: #000;
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      /* Notification Dropdown */
+      #notification-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: #121214;
+        border: 1px solid #1c1c1e;
+        border-radius: 12px;
+        min-width: 320px;
+        max-height: 400px;
+        overflow-y: auto;
+        display: none;
+        z-index: 2000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      #notification-dropdown.show {
+        display: block;
+      }
+      .notification-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid #1c1c1e;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        cursor: pointer;
+        transition: background 200ms;
+      }
+      .notification-item:hover {
+        background: #1c1c1e;
+      }
+      .notification-item:last-child {
+        border-bottom: none;
+      }
+      .notification-time {
+        font-size: 11px;
+        color: #808080;
+      }
+
+      /* Sidebar Badge */
+      .sidebar-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        background: #ff4444;
+        color: white;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-left: auto;
+      }
+
+      /* Hold-to-Delete Button */
+      .btn-hold-delete {
+        position: relative;
+        overflow: hidden;
+        background: #ff4d4f;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 200ms;
+        min-width: 80px;
+      }
+      .btn-hold-delete:hover {
+        background: #ff7875;
+        transform: scale(1.05);
+      }
+      .btn-hold-delete::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.2);
+        transition: width 3s ease;
+        z-index: -1;
+      }
+      .btn-hold-delete.holding::before {
+        width: 100%;
+      }
+      .btn-hold-delete.deleted {
+        background: #4caf50;
+        pointer-events: none;
+      }
+
+      /* Delete Modal Hidden */
+      #delete-modal {
+        display: none !important;
+      }
+
+      .admin-content {
+        padding: 104px 32px 32px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .section {
+        display: none;
+      }
+      .section.active {
+        display: block;
+      }
+
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-bottom: 26px;
+      }
+      .card {
+        background: #121214;
+        border: 1px solid #1c1c1e;
+        border-radius: 12px;
+        padding: 20px;
+        min-height: 110px;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .card:hover {
+        transform: translateY(-4px) scale(1.02);
+        border-color: #d4af37;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+      }
+      .card-title {
+        font-size: 12px;
+        color: #808080;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+      .card-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #d4af37;
+      }
+      .stat-trend {
+        display: none !important;
+      }
+
+      .stats-empty {
+        color: #808080;
+        padding: 36px;
+        border: 1px dashed #1c1c1e;
+        border-radius: 12px;
+        background: #0f0f11;
+      }
+
+      .panel {
+        background: #121214;
+        border: 1px solid #1c1c1e;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #1c1c1e;
+      }
+      .panel-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #d4af37, #c67c4e);
+        border: none;
+        color: #000;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px) scale(1.02);
+      }
+      .btn-primary:active {
+        transform: scale(0.98);
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .table-header,
+      .table-row {
+        display: grid;
+        grid-template-columns: 80px 2fr 1fr 1fr 1fr 1fr 1fr;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+      .table-header {
+        background: #0a0a0b;
+        border-bottom: 1px solid #1c1c1e;
+        font-size: 12px;
+        color: #808080;
+        text-transform: uppercase;
+      }
+      .table-row {
+        border-bottom: 1px solid #1c1c1e;
+        background: #121214;
+        position: relative;
+        transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .table-row:hover {
+        background: #1c1c1e;
+        transform: translateY(-2px);
+      }
+      .product-avatar {
+        width: 56px;
+        height: 56px;
+        background: linear-gradient(135deg, #d4af37, #c67c4e);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #000;
+        font-size: 18px;
+      }
+      .row-actions {
+        justify-self: end;
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 180ms ease;
+      }
+      .table-row:hover .row-actions {
+        opacity: 1;
+      }
+      .action-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid #1c1c1e;
+        background: #0a0a0b;
+        color: #808080;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 200ms;
+      }
+      .action-btn:hover {
+        background: #1c1c1e;
+        border-color: #d4af37;
+        color: #d4af37;
+        transform: scale(1.1);
+      }
+      .action-btn.delete:hover {
+        border-color: #ff4d4f;
+        color: #ff4d4f;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .status-available {
+        background: rgba(76, 175, 80, 0.15);
+        color: #4caf50;
+        border: 1px solid rgba(76, 175, 80, 0.35);
+      }
+      .status-unavailable {
+        background: rgba(255, 77, 79, 0.15);
+        color: #ff4d4f;
+        border: 1px solid rgba(255, 77, 79, 0.35);
+      }
+      .status-rejected {
+        background: rgba(255, 152, 0, 0.15);
+        color: #ff9800;
+        border: 1px solid rgba(255, 152, 0, 0.35);
+      }
+      .status-pending {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.35);
+      }
+      .status-success {
+        background: rgba(76, 175, 80, 0.15);
+        color: #4caf50;
+        border: 1px solid rgba(76, 175, 80, 0.35);
+      }
+      .status-expired {
+        background: rgba(96, 96, 96, 0.15);
+        color: #606060;
+        border: 1px solid rgba(96, 96, 96, 0.35);
+      }
+
+      .drawer-overlay {
+        position: fixed;
+        inset: 72px 0 0 0;
+        background: rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms;
+        z-index: 1001;
+      }
+      .drawer-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .edit-drawer {
+        position: fixed;
+        right: -440px;
+        top: 72px;
+        width: 420px;
+        height: calc(100vh - 72px);
+        background: #121214;
+        border-left: 1px solid #1c1c1e;
+        z-index: 1002;
+        transition: right 400ms cubic-bezier(0.22, 1, 0.36, 1);
+        overflow-y: auto;
+      }
+      .edit-drawer.open {
+        right: 0;
+      }
+      .drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px;
+        border-bottom: 1px solid #1c1c1e;
+      }
+      .drawer-header h3 {
+        color: #fff;
+        font-size: 18px;
+      }
+      .close-drawer-btn {
+        border: none;
+        background: transparent;
+        color: #808080;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .drawer-content {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group label {
+        font-size: 12px;
+        color: #d4af37;
+        font-weight: 700;
+      }
+      .form-group input,
+      .form-group textarea {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #1c1c1e;
+        background: #0a0a0b;
+        color: #fff;
+      }
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .loading {
+        padding: 22px;
+        color: #808080;
+        text-align: center;
+      }
+      .empty-state {
+        padding: 24px;
+        border: 1px dashed #1c1c1e;
+        border-radius: 12px;
+        text-align: center;
+        color: #808080;
+      }
+
+      .toast {
+        position: fixed;
+        top: 86px;
+        right: 24px;
+        background: #121214;
+        border: 1px solid #1c1c1e;
+        border-radius: 10px;
+        padding: 12px 14px;
+        color: #fff;
+        opacity: 0;
+        transform: translateX(20px);
+        transition: all 200ms;
+        z-index: 1500;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .toast-success {
+        border-color: #4caf50;
+      }
+      .toast-error {
+        border-color: #ff4d4f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-wrapper">
+      <aside class="admin-sidebar">
+        <div class="sidebar-brand">ADMIN SETTINGS</div>
+        <nav class="sidebar-nav">
+          <button class="sidebar-btn nav-btn active" data-section="dashboard">
+            Dashboard
+          </button>
+          <button class="sidebar-btn nav-btn" data-section="products">
+            Products
+          </button>
+          <button class="sidebar-btn nav-btn" data-section="orders">
+            Orders
+            <span class="sidebar-badge" id="orders-badge" style="display: none;">0</span>
+          </button>
+          <button class="sidebar-btn nav-btn" data-section="transactions">
+            Transactions
+            <span class="sidebar-badge" id="transactions-badge" style="display: none;">0</span>
+          </button>
+          <button class="sidebar-btn nav-btn" data-section="roles">
+            👥 User Roles
+          </button>
+        </nav>
+      </aside>
+
+      <div class="admin-main">
+        <header class="admin-topbar">
+          <div class="topbar-search">
+            <input
+              type="text"
+              id="search-box"
+              placeholder="Search products..."
+            />
+          </div>
+          <div class="topbar-right">
+            <button id="back-to-shop" class="icon-btn" title="Back to shop">🏠</button>
+            <button id="notification-bell" class="icon-btn" title="Notifications">🔔
+              <span id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center; border: 2px solid #121214;"></span>
+            </button>
+            <div id="notification-dropdown">
+              <div style="padding: 12px 16px; border-bottom: 1px solid #1c1c1e; font-weight: 600; color: #d4af37;">
+                Notifications
+              </div>
+              <div id="notification-list">
+                <div style="padding: 20px; text-align: center; color: #808080; font-size: 14px;">
+                  No notifications yet
+                </div>
+              </div>
+            </div>
+            <button id="logout-btn" class="icon-btn" title="Logout">🚪</button>
+            <button class="icon-btn avatar-btn" title="Admin">AD</button>
+          </div>
+        </header>
+
+        <main class="admin-content">
+          <section id="dashboard-section" class="section active">
+            <div class="cards-grid" id="stat-cards"></div>
+            <div class="cards-grid">
+              <div class="card">
+                <div class="card-title">Total Users</div>
+                <div class="card-value" id="total-users">0</div>
+              </div>
+            </div>
+            <div id="dashboard-empty" class="stats-empty" style="display: none">
+              No data yet
+            </div>
+            <div class="panel" style="margin-top: 20px">
+              <div class="panel-header">
+                <div class="panel-title">Recent Orders</div>
+              </div>
+              <div id="orders-summary" style="padding: 16px">
+                <div class="loading">Loading orders...</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="products-section" class="section">
+            <div class="panel-header" style="margin-bottom: 12px">
+              <h2 class="panel-title">Products</h2>
+              <button id="add-product-btn" class="btn-primary">
+                + Add Product
+              </button>
+            </div>
+            <div class="panel">
+              <div class="table-header">
+                <div>Image</div>
+                <div>Name</div>
+                <div>Price</div>
+                <div>Stock</div>
+                <div>Status</div>
+                <div>Actions</div>
+              </div>
+              <div id="products-list">
+                <div class="loading">Loading products...</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="orders-section" class="section">
+            <div class="panel-header" style="margin-bottom: 12px">
+              <h2 class="panel-title">Orders</h2>
+            </div>
+            <div class="panel">
+              <div class="table-header">
+                <div>Order ID</div>
+                <div>Email</div>
+                <div>Total</div>
+                <div>Status</div>
+                <div>Created</div>
+                <div>Actions</div>
+              </div>
+              <div id="orders-list">
+                <div class="loading">Loading orders...</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="transactions-section" class="section">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">Transaction Approvals</h2>
+              </div>
+              <div id="transactions-list">
+                <div class="loading">Loading transactions...</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="roles-section" class="section">
+            <div class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title">User Roles Management</h2>
+              </div>
+              <div style="padding: 20px; border-bottom: 1px solid #1c1c1e;">
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                  <input
+                    type="email"
+                    id="role-email-input"
+                    placeholder="Enter user email..."
+                    style="flex: 1; padding: 10px 14px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 8px; color: #fff; font-size: 14px;"
+                  />
+                  <button id="promote-btn" class="btn-primary" style="min-width: 140px;">
+                    🚀 Make Admin
+                  </button>
+                  <button id="demote-btn" class="btn-primary" style="min-width: 140px; background: linear-gradient(135deg, #ff9800, #f57c00);">
+                    ⬇️ Remove Admin
+                  </button>
+                </div>
+              </div>
+              <div id="users-list" style="padding: 16px;">
+                <div class="loading">Loading users...</div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <aside class="edit-drawer" id="edit-drawer">
+      <div class="drawer-header">
+        <h3 id="drawer-title">Add / Edit Product</h3>
+        <button class="close-drawer-btn" id="close-drawer-btn"></button>
+      </div>
+      <div class="drawer-content">
+        <div class="form-group">
+          <label>Name</label
+          ><input id="form-name" type="text" placeholder="Product name" />
+        </div>
+        <div class="form-group">
+          <label>Description</label
+          ><textarea
+            id="form-desc"
+            placeholder="Product description"
+            rows="3"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>Price (đ)</label
+          ><input id="form-price" type="number" min="0" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>Image URL</label
+          ><input id="form-image" type="url" placeholder="https://..." />
+        </div>
+        <div class="form-group">
+          <label>Category</label
+          ><input id="form-category" type="text" placeholder="Category" />
+        </div>
+        <div class="form-group">
+          <label>Stock</label
+          ><input id="form-stock" type="number" min="0" placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label>Discount (%)</label
+          ><input
+            id="form-discount"
+            type="number"
+            min="0"
+            max="100"
+            placeholder="0"
+          />
+        </div>
+        <div class="form-group">
+          <label>Available</label
+          ><select id="form-available">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button id="save-product-btn" class="btn btn-primary">Save</button
+          ><button id="cancel-edit-btn" class="btn" style="background: #1c1c1e">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <div id="delete-modal" class="delete-modal">
+      <div class="modal-content">
+        <h3>Delete Product?</h3>
+        <p id="delete-msg">Are you sure?</p>
+        <div class="modal-actions">
+          <button id="confirm-delete-btn" class="btn btn-primary">Delete</button
+          ><button id="cancel-delete-btn" class="btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cart-container"></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="../js/admin.js"></script>
+  </body>
+</html>

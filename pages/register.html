@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Join The Gilded Bean | Premium Coffee Experience</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      /* ===== CINEMATIC AUTHENTICATION EXPERIENCE ===== */
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-sans);
+        background: var(--color-surface-l0);
+        overflow-x: hidden;
+        min-height: 100vh;
+      }
+
+      /* ===== SPLIT SCREEN LAYOUT ===== */
+      .auth-container {
+        display: flex;
+        min-height: 100vh;
+        position: relative;
+      }
+
+      /* ===== LEFT SIDE - CINEMATIC VISUAL ===== */
+      .auth-visual {
+        flex: 0 0 60%;
+        position: relative;
+        background: linear-gradient(
+          135deg,
+          #1a1a1c 0%,
+          #0a0a0b 50%,
+          #1a1a1c 100%
+        );
+        overflow: hidden;
+        opacity: 0;
+        animation: visualFadeIn 1.2s ease-out 0.2s forwards;
+      }
+
+      .auth-visual::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="coffee-beans" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="2" fill="rgba(212,175,55,0.1)"/><circle cx="15" cy="15" r="1.5" fill="rgba(198,124,78,0.08)"/><circle cx="8" cy="12" r="1" fill="rgba(139,111,71,0.06)"/></pattern></defs><rect width="100" height="100" fill="url(%23coffee-beans)"/></svg>');
+        opacity: 0.4;
+        pointer-events: none;
+      }
+
+      .auth-visual::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 30%,
+          rgba(10, 10, 11, 0.8) 100%
+        );
+        pointer-events: none;
+      }
+
+      .visual-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 2;
+        color: var(--color-text-primary);
+        max-width: 500px;
+        padding: 0 var(--space-lg);
+      }
+
+      .visual-title {
+        font-family: var(--font-serif);
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 700;
+        margin-bottom: var(--space-md);
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+        line-height: 1.1;
+      }
+
+      .visual-subtitle {
+        font-size: clamp(1.1rem, 2vw, 1.4rem);
+        color: var(--color-text-secondary);
+        opacity: 0.9;
+        line-height: 1.6;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+      }
+
+      /* ===== RIGHT SIDE - FORM ===== */
+      .auth-form {
+        flex: 0 0 40%;
+        background: var(--color-surface-l0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-2xl);
+        position: relative;
+      }
+
+      .form-container {
+        width: 100%;
+        max-width: 400px;
+        opacity: 0;
+        transform: translateY(30px);
+        animation: formSlideIn 0.8s ease-out 0.6s forwards;
+      }
+
+      /* ===== ANIMATIONS ===== */
+      @keyframes visualFadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes formSlideIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ===== FORM ELEMENTS ===== */
+      .form-header {
+        text-align: center;
+        margin-bottom: var(--space-2xl);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: elementFadeIn 0.6s ease-out 0.8s forwards;
+      }
+
+      .form-title {
+        font-family: var(--font-serif);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-sm);
+        line-height: 1.2;
+      }
+
+      .form-subtitle {
+        color: var(--color-text-secondary);
+        font-size: 1rem;
+        opacity: 0.8;
+      }
+
+      /* ===== INPUT FIELDS ===== */
+      .form-group {
+        margin-bottom: var(--space-lg);
+        position: relative;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: elementFadeIn 0.6s ease-out 1s forwards;
+      }
+
+      .form-group:nth-child(2) {
+        animation-delay: 1.1s;
+      }
+
+      .form-group:nth-child(3) {
+        animation-delay: 1.2s;
+      }
+
+      .form-group:nth-child(4) {
+        animation-delay: 1.3s;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-xs);
+        transition: all var(--transition-fast) var(--easing-primary);
+        transform-origin: left;
+      }
+
+      .form-input {
+        width: 100%;
+        height: 52px;
+        padding: var(--space-sm) var(--space-md);
+        background: var(--color-surface-l1);
+        border: 2px solid var(--color-border-subtle);
+        border-radius: var(--radius-sm);
+        color: var(--color-text-primary);
+        font-size: 1rem;
+        transition: all var(--transition-fast) var(--easing-primary);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .form-input::placeholder {
+        color: var(--color-text-muted);
+        transition: opacity var(--transition-fast) var(--easing-primary);
+      }
+
+      .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary-accent);
+        background: var(--color-surface-l2);
+        box-shadow:
+          0 0 0 3px rgba(198, 124, 78, 0.1),
+          var(--glow-accent);
+        transform: translateY(-1px);
+      }
+
+      .form-input:focus::placeholder {
+        opacity: 0.6;
+      }
+
+      .form-input.error {
+        border-color: var(--color-error);
+        animation: shake 0.5s ease-in-out;
+      }
+
+      .form-input.error:focus {
+        box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.1);
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      /* ===== BUTTONS ===== */
+      .auth-button {
+        width: 100%;
+        height: 56px;
+        background: var(--color-primary-accent);
+        color: var(--color-text-primary);
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast) var(--easing-primary);
+        position: relative;
+        overflow: hidden;
+        margin-bottom: var(--space-lg);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: elementFadeIn 0.6s ease-out 1.4s forwards;
+        box-shadow: var(--glow-accent);
+      }
+
+      .auth-button::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s ease;
+      }
+
+      .auth-button:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow:
+          0 8px 25px rgba(198, 124, 78, 0.4),
+          var(--glow-accent);
+      }
+
+      .auth-button:hover::before {
+        left: 100%;
+      }
+
+      .auth-button:active {
+        transform: translateY(0) scale(0.98);
+        transition: transform 100ms var(--easing-primary);
+      }
+
+      .auth-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .auth-button.loading {
+        color: transparent;
+      }
+
+      .auth-button.loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        margin: -12px 0 0 -12px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid var(--color-text-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ===== GOOGLE REGISTER ===== */
+      .google-button {
+        width: 100%;
+        height: 56px;
+        background: var(--color-surface-l1);
+        border: 2px solid var(--color-border-subtle);
+        border-radius: var(--radius-sm);
+        color: var(--color-text-primary);
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-fast) var(--easing-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-lg);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: elementFadeIn 0.6s ease-out 1.5s forwards;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .google-button::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05) 0%,
+          transparent 50%
+        );
+        opacity: 0;
+        transition: opacity var(--transition-fast) var(--easing-primary);
+      }
+
+      .google-button:hover {
+        border-color: var(--color-metallic-gold);
+        background: var(--color-surface-l2);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .google-button:hover::before {
+        opacity: 1;
+      }
+
+      .google-button:active {
+        transform: translateY(0);
+        transition: transform 100ms var(--easing-primary);
+      }
+
+      .google-icon {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      /* ===== SWITCH LINK ===== */
+      .auth-switch {
+        text-align: center;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: elementFadeIn 0.6s ease-out 1.6s forwards;
+      }
+
+      .auth-switch-text {
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
+      }
+
+      .auth-switch-link {
+        color: var(--color-primary-accent);
+        text-decoration: none;
+        font-weight: 600;
+        transition: all var(--transition-fast) var(--easing-primary);
+        position: relative;
+      }
+
+      .auth-switch-link::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--color-primary-accent);
+        transition: width var(--transition-fast) var(--easing-primary);
+      }
+
+      .auth-switch-link:hover::after {
+        width: 100%;
+      }
+
+      /* ===== ERROR MESSAGE ===== */
+      .error-message {
+        background: rgba(255, 77, 79, 0.1);
+        border: 1px solid var(--color-error);
+        border-radius: var(--radius-sm);
+        padding: var(--space-md);
+        margin-bottom: var(--space-lg);
+        color: var(--color-error);
+        font-size: 0.9rem;
+        opacity: 0;
+        transform: translateY(-10px);
+        animation: errorSlideIn 0.4s ease-out forwards;
+        display: none;
+      }
+
+      @keyframes errorSlideIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ===== ELEMENT FADE IN ===== */
+      @keyframes elementFadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 1024px) {
+        .auth-container {
+          flex-direction: column;
+        }
+
+        .auth-visual {
+          flex: 0 0 50vh;
+          min-height: 300px;
+        }
+
+        .auth-form {
+          flex: 1;
+          padding: var(--space-xl);
+        }
+
+        .form-title {
+          font-size: 2rem;
+        }
+
+        .visual-title {
+          font-size: clamp(2rem, 8vw, 3rem);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .auth-visual {
+          flex: 0 0 40vh;
+        }
+
+        .form-container {
+          max-width: 100%;
+        }
+
+        .auth-form {
+          padding: var(--space-lg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-container">
+      <!-- LEFT SIDE - CINEMATIC VISUAL -->
+      <div class="auth-visual">
+        <div class="visual-content">
+          <h1 class="visual-title">Join The Gilded Bean</h1>
+          <p class="visual-subtitle">
+            Begin your journey into exceptional coffee craftsmanship
+          </p>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDE - FORM -->
+      <div class="auth-form">
+        <div class="form-container">
+          <div class="form-header">
+            <h2 class="form-title">Create Account</h2>
+            <p class="form-subtitle">
+              Join our community of coffee enthusiasts
+            </p>
+          </div>
+
+          <div id="error-message" class="error-message"></div>
+
+          <form id="register-form">
+            <div class="form-group">
+              <label class="form-label" for="name">Display Name</label>
+              <input
+                type="text"
+                id="name"
+                class="form-input"
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="email">Email Address</label>
+              <input
+                type="email"
+                id="email"
+                class="form-input"
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                class="form-input"
+                placeholder="Create a password"
+                minlength="6"
+                required
+              />
+            </div>
+
+            <button type="submit" class="auth-button" id="register-btn">
+              Create Account
+            </button>
+          </form>
+
+          <div
+            style="
+              text-align: center;
+              margin: var(--space-lg) 0;
+              position: relative;
+              opacity: 0;
+              transform: translateY(20px);
+              animation: elementFadeIn 0.6s ease-out 1.5s forwards;
+            "
+          >
+            <span
+              style="
+                background: var(--color-surface-l0);
+                padding: 0 var(--space-md);
+                color: var(--color-text-secondary);
+                font-size: 0.9rem;
+                position: relative;
+                z-index: 1;
+              "
+              >or</span
+            >
+            <div
+              style="
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: var(--color-border-subtle);
+                z-index: 0;
+              "
+            ></div>
+          </div>
+
+          <button id="google-register" class="google-button">
+            <svg class="google-icon" viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="currentColor"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="currentColor"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+            Continue with Google
+          </button>
+
+          <div class="auth-switch">
+            <span class="auth-switch-text">Already have an account? </span>
+            <a href="login.html" class="auth-switch-link">Sign in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        registerWithEmail,
+        loginWithGoogle,
+      } from "../js/services/firebase.service.js";
+
+      const registerForm = document.getElementById("register-form");
+      const registerBtn = document.getElementById("register-btn");
+      const googleRegisterBtn = document.getElementById("google-register");
+      const errorMessageDiv = document.getElementById("error-message");
+      const nameInput = document.getElementById("name");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+
+      // Auto-focus first input
+      nameInput.focus();
+
+      // Form validation
+      function validateForm() {
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        let isValid = true;
+
+        // Reset error states
+        [nameInput, emailInput, passwordInput].forEach((input) => {
+          input.classList.remove("error");
+        });
+
+        if (name.length < 2) {
+          nameInput.classList.add("error");
+          isValid = false;
+        }
+
+        if (!email.includes("@") || !email.includes(".")) {
+          emailInput.classList.add("error");
+          isValid = false;
+        }
+
+        if (password.length < 6) {
+          passwordInput.classList.add("error");
+          isValid = false;
+        }
+
+        registerBtn.disabled = !isValid;
+        return isValid;
+      }
+
+      // Real-time validation
+      [nameInput, emailInput, passwordInput].forEach((input) => {
+        input.addEventListener("input", validateForm);
+        input.addEventListener("blur", validateForm);
+      });
+
+      // Form submission
+      registerForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (!validateForm()) return;
+
+        try {
+          // Show loading state
+          registerBtn.disabled = true;
+          registerBtn.classList.add("loading");
+          errorMessageDiv.style.display = "none";
+
+          const name = nameInput.value.trim();
+          const email = emailInput.value.trim();
+          const password = passwordInput.value;
+
+          // Attempt registration
+          await registerWithEmail(email, password, name);
+
+          // Success - redirect to home
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 500);
+        } catch (error) {
+          // Show error message
+          console.error("Registration error:", error);
+          registerBtn.disabled = false;
+          registerBtn.classList.remove("loading");
+          errorMessageDiv.style.display = "block";
+
+          // User-friendly error message
+          let errorMsg = "Registration failed. Please try again.";
+          if (error.code === "auth/email-already-in-use") {
+            errorMsg = "This email is already registered.";
+          } else if (error.code === "auth/weak-password") {
+            errorMsg = "Password should be at least 6 characters.";
+          } else if (error.message) {
+            errorMsg = error.message;
+          }
+
+          errorMessageDiv.textContent = "❌ " + errorMsg;
+        }
+      });
+
+      // Google registration
+      googleRegisterBtn.onclick = async () => {
+        try {
+          // Show loading state
+          googleRegisterBtn.disabled = true;
+          googleRegisterBtn.classList.add("loading");
+          errorMessageDiv.style.display = "none";
+
+          // Attempt login with Google
+          await loginWithGoogle();
+
+          // Success - redirect to home
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 500);
+        } catch (error) {
+          // Show error message
+          console.error("Google registration error:", error);
+          googleRegisterBtn.disabled = false;
+          googleRegisterBtn.classList.remove("loading");
+          errorMessageDiv.style.display = "block";
+
+          // User-friendly error message
+          let errorMsg = "Registration failed. Please try again.";
+          if (error.code === "auth/popup-closed-by-user") {
+            errorMsg = "Registration cancelled.";
+          } else if (error.code === "auth/popup-blocked") {
+            errorMsg =
+              "Registration popup was blocked. Please allow popups and try again.";
+          } else if (error.message) {
+            errorMsg = error.message;
+          }
+
+          errorMessageDiv.textContent = "❌ " + errorMsg;
+        }
+      };
+    </script>
+  </body>
+</html>

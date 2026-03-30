@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Deposit | Gilded Bean</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      body {
+        background: var(--color-surface-l0);
+        color: var(--color-text-primary);
+      }
+
+      #navbar {
+        position: sticky;
+        top: 0;
+        background: rgba(18, 18, 20, 0.95);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.08);
+        z-index: 100;
+        backdrop-filter: blur(10px);
+      }
+
+      #cart-container {
+        display: none;
+      }
+
+      /* ===== PAGE LAYOUT ===== */
+      .deposit-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 var(--container-padding);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding-top: 80px;
+      }
+
+      .deposit-header {
+        text-align: center;
+        margin-bottom: 64px;
+        animation: fadeInUp 0.6s var(--easing-primary);
+      }
+
+      .deposit-header h1 {
+        font-family: var(--font-serif);
+        font-size: 48px;
+        font-weight: var(--font-weight-bold);
+        margin: 0 0 12px 0;
+        color: var(--color-text-primary);
+        letter-spacing: 0.5px;
+      }
+
+      .deposit-header p {
+        margin: 0;
+        color: var(--color-text-secondary);
+        font-size: 16px;
+        letter-spacing: 0.3px;
+      }
+
+      /* ===== DEPOSIT CONTENT (FLEX CENTER) ===== */
+      .deposit-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 48px;
+        margin-bottom: 64px;
+      }
+
+      /* ===== BALANCE CARD (HERO ELEMENT) ===== */
+      .balance-card {
+        width: 420px;
+        height: 240px;
+        position: relative;
+        animation: fadeInScale 0.8s var(--easing-primary) 0.1s both;
+      }
+
+      /* Layered background with gradient and glow */
+      .balance-card-inner {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          rgba(18, 18, 20, 0.9) 0%,
+          rgba(28, 28, 30, 0.7) 50%,
+          rgba(60, 50, 40, 0.3) 100%
+        );
+        border: 1px solid rgba(212, 175, 55, 0.15);
+        border-radius: var(--radius-md);
+        padding: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+        box-shadow:
+          0 0 60px rgba(0, 0, 0, 0.8),
+          inset 0 1px 0 rgba(212, 175, 55, 0.1),
+          0 20px 60px rgba(198, 124, 78, 0.08);
+        transition: all 0.3s var(--easing-smooth);
+      }
+
+      .balance-card:hover .balance-card-inner {
+        box-shadow:
+          0 0 80px rgba(0, 0, 0, 0.6),
+          inset 0 1px 0 rgba(212, 175, 55, 0.15),
+          0 24px 72px rgba(198, 124, 78, 0.12);
+        background: linear-gradient(
+          135deg,
+          rgba(18, 18, 20, 0.85) 0%,
+          rgba(28, 28, 30, 0.65) 50%,
+          rgba(70, 55, 45, 0.35) 100%
+        );
+      }
+
+      /* Ambient glow backdrop */
+      .balance-card::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 120%;
+        height: 120%;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(198, 124, 78, 0.15) 0%,
+          rgba(198, 124, 78, 0.05) 30%,
+          transparent 70%
+        );
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+        filter: blur(40px);
+      }
+
+      .balance-label {
+        color: var(--color-text-secondary);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      /* HERO: Balance Amount */
+      .balance-amount {
+        font-family: var(--font-serif);
+        font-size: 64px;
+        font-weight: var(--font-weight-bold);
+        color: var(--color-text-primary);
+        text-shadow:
+          0 0 20px rgba(212, 175, 55, 0.15),
+          0 0 40px rgba(198, 124, 78, 0.08);
+        letter-spacing: -1px;
+        line-height: 1;
+        position: relative;
+      }
+
+      /* ===== PAYMENT METHODS SECTION ===== */
+      .payment-methods-section {
+        width: 100%;
+      }
+
+      .payment-methods-label {
+        display: block;
+        color: var(--color-text-secondary);
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: 24px;
+        text-align: center;
+      }
+
+      .payment-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        margin-bottom: 48px;
+      }
+
+      /* Payment Method Tile */
+      .payment-method {
+        position: relative;
+        cursor: pointer;
+      }
+
+      .payment-method-tile {
+        background: var(--color-surface-l1);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-md);
+        padding: var(--space-lg);
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--transition-fast) var(--easing-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        background: linear-gradient(
+          135deg,
+          var(--color-surface-l1),
+          var(--color-surface-l2)
+        );
+      }
+
+      /* Hover State */
+      .payment-method:hover .payment-method-tile {
+        transform: scale(1.02);
+        border-color: var(--color-border-subtle);
+        box-shadow:
+          0 8px 24px rgba(0, 0, 0, 0.3),
+          0 0 20px rgba(198, 124, 78, 0.1);
+        background: linear-gradient(
+          135deg,
+          var(--color-surface-l2),
+          var(--color-surface-l3)
+        );
+        filter: brightness(1.1);
+      }
+
+      /* Selected State */
+      .payment-method.selected .payment-method-tile {
+        border: 2px solid var(--color-metallic-gold);
+        box-shadow:
+          0 8px 24px rgba(0, 0, 0, 0.3),
+          0 0 24px rgba(212, 175, 55, 0.3),
+          inset 0 0 12px rgba(212, 175, 55, 0.08);
+        background: linear-gradient(
+          135deg,
+          var(--color-surface-l1),
+          var(--color-surface-l2)
+        );
+        transform: scale(1.02);
+      }
+
+      /* Check icon indicator */
+      .payment-method-check {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 16px;
+        height: 16px;
+        background: var(--color-metallic-gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-surface-l0);
+        font-size: 10px;
+        font-weight: bold;
+        opacity: 0;
+        transform: scale(0);
+        transition: all 200ms var(--easing-primary);
+      }
+
+      .payment-method.selected .payment-method-check {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .payment-method-icon {
+        font-size: 32px;
+        display: block;
+        transition: transform 0.3s var(--easing-smooth);
+      }
+
+      .payment-method:hover .payment-method-icon {
+        transform: scale(1.1);
+      }
+
+      .payment-method-name {
+        font-size: 13px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+        text-align: center;
+      }
+
+      .payment-method:hover .payment-method-name {
+        color: var(--color-text-primary);
+      }
+
+      /* ===== DEPOSIT FORM ===== */
+      .deposit-form-group {
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto 32px;
+      }
+
+      .form-group label {
+        display: block;
+        color: var(--color-text-secondary);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: 12px;
+      }
+
+      .deposit-amount-input {
+        width: 100%;
+        height: 52px;
+        padding: 0 var(--space-md);
+        font-size: 16px;
+        font-weight: var(--font-weight-semibold);
+        background-color: var(--color-surface-l1);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast) var(--easing-primary);
+        font-family: var(--font-sans);
+      }
+
+      .deposit-amount-input::placeholder {
+        color: var(--color-text-muted);
+      }
+
+      .deposit-amount-input:focus {
+        border-color: var(--color-primary-accent);
+        box-shadow:
+          inset 0 0 0 2px var(--color-primary-accent),
+          0 0 20px rgba(198, 124, 78, 0.2);
+        background-color: var(--color-surface-l2);
+      }
+
+      /* ===== CONFIRM BUTTON ===== */
+      .deposit-btn-wrapper {
+        width: 100%;
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      .btn-deposit {
+        width: 100%;
+        height: 48px;
+        background-color: var(--color-primary-accent);
+        color: var(--color-text-primary);
+        border: none;
+        border-radius: var(--radius-sm);
+        font-size: 16px;
+        font-weight: var(--font-weight-bold);
+        cursor: pointer;
+        letter-spacing: 0.5px;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--transition-fast) var(--easing-primary);
+        box-shadow: var(--glow-accent);
+        font-family: var(--font-sans);
+      }
+
+      .btn-deposit::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          transparent,
+          rgba(255, 255, 255, 0.1),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+      }
+
+      .btn-deposit:hover:not(:disabled) {
+        transform: scale(1.02) translateY(-2px);
+        box-shadow:
+          0px 8px 28px rgba(198, 124, 78, 0.5),
+          0px 0px 40px rgba(198, 124, 78, 0.25);
+      }
+
+      .btn-deposit:hover:not(:disabled)::before {
+        transform: translateX(100%);
+      }
+
+      .btn-deposit:active:not(:disabled) {
+        transform: scale(0.98) translateY(0);
+      }
+
+      .btn-deposit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-deposit.loading {
+        pointer-events: none;
+      }
+
+      /* ===== SUCCESS STATE ===== */
+      .success-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+        animation: fadeIn 0.3s var(--easing-primary);
+      }
+
+      .success-overlay.show {
+        display: flex;
+      }
+
+      .success-message {
+        background: var(--color-surface-l1);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-md);
+        padding: 48px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        animation: scaleIn 0.4s var(--easing-primary);
+      }
+
+      .success-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        animation: bounceIn 0.6s var(--easing-bounce);
+      }
+
+      .success-title {
+        font-family: var(--font-serif);
+        font-size: 28px;
+        font-weight: var(--font-weight-bold);
+        color: var(--color-text-primary);
+        margin-bottom: 12px;
+      }
+
+      .success-amount {
+        font-size: 18px;
+        color: var(--color-metallic-gold);
+        margin-bottom: 24px;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .success-btn {
+        background: var(--color-primary-accent);
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: var(--radius-sm);
+        font-weight: var(--font-weight-bold);
+        cursor: pointer;
+        transition: all 0.2s var(--easing-primary);
+      }
+
+      .success-btn:hover {
+        transform: scale(1.02);
+        box-shadow: var(--glow-accent);
+      }
+
+      /* ===== CONFETTI PARTICLES ===== */
+      .confetti {
+        position: fixed;
+        pointer-events: none;
+        z-index: 999;
+      }
+
+      .confetti-particle {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #8b6f47;
+        border-radius: 50%;
+        animation: confettiFall 2s ease-out forwards;
+      }
+
+      /* ===== ANIMATIONS ===== */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeInScale {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes scaleIn {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes bounceIn {
+        0% {
+          opacity: 0;
+          transform: scale(0);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes confettiFall {
+        to {
+          transform: translateY(500px) rotate(720deg);
+          opacity: 0;
+        }
+      }
+
+      @keyframes countUp {
+        from {
+          opacity: 0.7;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      /* ===== NAVIGATION LINKS ===== */
+      .deposit-nav {
+        display: flex;
+        justify-content: center;
+        gap: 32px;
+        margin-top: auto;
+        margin-bottom: 40px;
+        padding-top: 32px;
+        border-top: 1px solid var(--color-border-subtle);
+      }
+
+      .deposit-nav a {
+        color: var(--color-text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s var(--easing-primary);
+      }
+
+      .deposit-nav a:hover {
+        color: var(--color-primary-accent);
+        transform: translateX(2px);
+      }
+
+      /* ===== MESSAGE STATES ===== */
+      .error-message {
+        color: var(--color-error);
+        text-align: center;
+        font-size: 14px;
+        margin-top: 16px;
+        opacity: 0;
+        animation: fadeIn 0.3s var(--easing-primary) forwards;
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .balance-card {
+          width: 100%;
+          max-width: 380px;
+          height: 200px;
+        }
+
+        .payment-methods-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .deposit-header h1 {
+          font-size: 36px;
+        }
+
+        .balance-amount {
+          font-size: 48px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar"></div>
+    <div id="cart-container"></div>
+
+    <div class="deposit-container">
+      <!-- Header -->
+      <div class="deposit-header">
+        <h1>Nạp Tiền</h1>
+        <p>Chọn phương thức thanh toán và nạp tiền vào tài khoản của bạn</p>
+      </div>
+
+      <!-- Main Content -->
+      <div class="deposit-content">
+        <!-- Balance Card (Hero Element) -->
+        <div class="balance-card">
+          <div class="balance-card-inner">
+            <div class="balance-label">Số dư hiện tại</div>
+            <div class="balance-amount" id="current-balance">0đ</div>
+          </div>
+        </div>
+
+        <!-- Payment Methods Section -->
+        <div class="payment-methods-section">
+          <label class="payment-methods-label"
+            >Chọn phương thức thanh toán</label
+          >
+          <div class="payment-methods-grid">
+            <!-- Card Payment -->
+            <div class="payment-method" data-method="card">
+              <div class="payment-method-tile">
+                <div class="payment-method-check">✓</div>
+                <span class="payment-method-icon">💳</span>
+                <span class="payment-method-name">Thẻ Ngân Hàng</span>
+              </div>
+            </div>
+
+            <!-- Crypto Payment -->
+            <div class="payment-method" data-method="crypto">
+              <div class="payment-method-tile">
+                <div class="payment-method-check">✓</div>
+                <span class="payment-method-icon">₿</span>
+                <span class="payment-method-name">Tiền Điện Tử</span>
+              </div>
+            </div>
+
+            <!-- Bank Transfer Payment -->
+            <div class="payment-method" data-method="bank">
+              <div class="payment-method-tile">
+                <div class="payment-method-check">✓</div>
+                <span class="payment-method-icon">🏦</span>
+                <span class="payment-method-name">Chuyển Khoản</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deposit Form -->
+        <div class="deposit-form-group">
+          <label for="amount">Số tiền nạp (VND)</label>
+          <input
+            type="number"
+            id="amount"
+            class="deposit-amount-input"
+            placeholder="Nhập số tiền..."
+            min="10000"
+            step="10000"
+          />
+        </div>
+
+        <!-- Confirm Button -->
+        <div class="deposit-btn-wrapper">
+          <button id="submit-deposit" class="btn-deposit" disabled>
+            Xác Nhận Nạp Tiền
+          </button>
+          <div id="error-msg" class="error-message"></div>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <div class="deposit-nav">
+        <a href="index.html">← Quay Lại Trang Chủ</a>
+        <a href="profile.html">Hồ Sơ →</a>
+      </div>
+    </div>
+
+    <!-- Success Overlay -->
+    <div id="success-overlay" class="success-overlay">
+      <div class="success-message">
+        <div class="success-icon">🎉</div>
+        <div class="success-title">Nạp Tiền Thành Công</div>
+        <div class="success-amount" id="success-amount">+1,000,000đ</div>
+        <button id="success-close" class="success-btn">Tiếp Tục</button>
+      </div>
+    </div>
+
+    <script type="module">
+      // Initialize Firebase Auth globally
+      import { initializeAuth } from "../js/core/auth-init.js";
+
+      // Local imports for this page
+      import { auth, db } from "../js/services/firebase.service.js";
+      import { depositTransaction } from "../js/services/transaction.service.js";
+      import { renderNavbar } from "../js/components/navbar.js";
+      import { renderCart } from "../js/components/cart.js";
+      import store from "../js/store/index.js";
+
+      // Initialize auth on page load
+      initializeAuth();
+
+      // DOM Elements
+      const amountInput = document.getElementById("amount");
+      const submitBtn = document.getElementById("submit-deposit");
+      const errorMsg = document.getElementById("error-msg");
+      const currentBalanceDiv = document.getElementById("current-balance");
+      const successOverlay = document.getElementById("success-overlay");
+      const successAmount = document.getElementById("success-amount");
+      const successClose = document.getElementById("success-close");
+      const paymentMethods = document.querySelectorAll(".payment-method");
+
+      let isSubmitting = false;
+      let selectedPaymentMethod = null;
+      let oldBalance = 0;
+
+      // ===== NAVBAR & CART RENDERING =====
+      const renderWithNavbar = () => {
+        const state = store.getState();
+        renderNavbar(state);
+        renderCart(state);
+      };
+
+      renderWithNavbar();
+      store.subscribe(renderWithNavbar);
+
+      // ===== BALANCE INITIALIZATION =====
+      const state = store.getState();
+      if (state.user.data) {
+        oldBalance = state.user.data.balance;
+        updateBalanceDisplay(oldBalance);
+      }
+
+      store.subscribe(() => {
+        const updatedState = store.getState();
+        if (updatedState.user.data) {
+          const newBalance = updatedState.user.data.balance;
+          updateBalanceDisplay(newBalance);
+          oldBalance = newBalance;
+        }
+      });
+
+      // ===== PAYMENT METHOD SELECTION =====
+      paymentMethods.forEach((method) => {
+        method.addEventListener("click", () => {
+          // Remove previous selection
+          paymentMethods.forEach((m) => m.classList.remove("selected"));
+          // Add selection to clicked method
+          method.classList.add("selected");
+          selectedPaymentMethod = method.dataset.method;
+          // Enable button if amount is valid
+          validateForm();
+        });
+      });
+
+      // ===== FORM VALIDATION =====
+      amountInput.addEventListener("input", validateForm);
+      amountInput.addEventListener("focus", () => {
+        errorMsg.textContent = "";
+      });
+
+      function validateForm() {
+        const amount = parseInt(amountInput.value);
+        const isValid = amount >= 10000 && selectedPaymentMethod;
+        submitBtn.disabled = !isValid;
+      }
+
+      function updateBalanceDisplay(balance) {
+        const formattedBalance = balance.toLocaleString("vi-VN");
+        currentBalanceDiv.textContent = formattedBalance + "đ";
+        // Animate the number
+        currentBalanceDiv.style.animation = "none";
+        setTimeout(() => {
+          currentBalanceDiv.style.animation =
+            "countUp 0.6s var(--easing-primary)";
+        }, 10);
+      }
+
+      // ===== CONFETTI ANIMATION =====
+      function createConfetti() {
+        const confettiContainer = document.createElement("div");
+        confettiContainer.className = "confetti";
+        document.body.appendChild(confettiContainer);
+
+        const particleCount = 50;
+        const buttonRect = submitBtn.getBoundingClientRect();
+        const startX = buttonRect.left + buttonRect.width / 2;
+        const startY = buttonRect.top + buttonRect.height / 2;
+
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement("div");
+          particle.className = "confetti-particle";
+          particle.style.left = startX + "px";
+          particle.style.top = startY + "px";
+
+          // Random direction
+          const angle = Math.random() * Math.PI * 2;
+          const velocity = 5 + Math.random() * 15;
+          const vx = Math.cos(angle) * velocity;
+          const vy = Math.sin(angle) * velocity - 5; // Upward bias
+
+          particle.style.setProperty("--vx", vx + "px");
+          particle.style.setProperty("--vy", vy + "px");
+
+          confettiContainer.appendChild(particle);
+        }
+
+        // Remove container after animation
+        setTimeout(() => {
+          confettiContainer.remove();
+        }, 2000);
+      }
+
+      // ===== COUNT UP ANIMATION =====
+      function animateCountUp(fromValue, toValue) {
+        const duration = 1200; // milliseconds
+        const startTime = Date.now();
+
+        function updateCount() {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+
+          const newValue = Math.floor(
+            fromValue + (toValue - fromValue) * progress,
+          );
+          const formattedValue = newValue.toLocaleString("vi-VN");
+          currentBalanceDiv.textContent = formattedValue + "đ";
+
+          if (progress < 1) {
+            requestAnimationFrame(updateCount);
+          }
+        }
+
+        requestAnimationFrame(updateCount);
+      }
+
+      function showToast(message, type = "info") {
+        const existingToast = document.getElementById("app-toast");
+        if (existingToast) existingToast.remove();
+
+        const toast = document.createElement("div");
+        toast.id = "app-toast";
+        toast.textContent = message;
+        toast.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: ${type === "success" ? "#4caf50" : type === "error" ? "#ff4d4f" : "#333"};
+          color: white;
+          padding: 12px 16px;
+          border-radius: 6px;
+          z-index: 2000;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          transition: opacity 0.3s ease;
+        `;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // ===== SUBMIT HANDLER =====
+      submitBtn.addEventListener("click", async () => {
+        const amount = parseInt(amountInput.value);
+
+        if (!amount || amount < 10000) {
+          errorMsg.textContent = "Số tiền tối thiểu là 10,000đ";
+          return;
+        }
+
+        if (!selectedPaymentMethod) {
+          errorMsg.textContent = "Vui lòng chọn phương thức thanh toán";
+          return;
+        }
+
+        if (isSubmitting) return;
+
+        const state = store.getState();
+        const currentUser = state.user.data;
+        if (!currentUser) {
+          errorMsg.textContent = "Vui lòng đăng nhập để nạp tiền";
+          isSubmitting = false;
+          return;
+        }
+
+        isSubmitting = true;
+        submitBtn.classList.add("loading");
+        errorMsg.textContent = "";
+
+        try {
+          const result = await depositTransaction(db, currentUser.uid, amount);
+
+          // Show pending status
+          showToast("⏳ Yêu cầu nạp tiền đã được gửi, chờ admin duyệt...", "info");
+
+          amountInput.value = "";
+          paymentMethods.forEach((m) => m.classList.remove("selected"));
+          selectedPaymentMethod = null;
+          validateForm();
+        } catch (error) {
+          console.error("Deposit error:", error);
+          errorMsg.textContent =
+            "Lỗi: " + (error.message || "Không thể xử lý nạp tiền");
+          showToast("❌ Nạp tiền thất bại.", "error");
+        } finally {
+          isSubmitting = false;
+          submitBtn.classList.remove("loading");
+        }
+      });
+
+      // ===== SUCCESS OVERLAY CLOSE =====
+      successClose.addEventListener("click", () => {
+        successOverlay.classList.remove("show");
+      });
+
+      successOverlay.addEventListener("click", (e) => {
+        if (e.target === successOverlay) {
+          successOverlay.classList.remove("show");
+        }
+      });
+    </script>
+  </body>
+</html>

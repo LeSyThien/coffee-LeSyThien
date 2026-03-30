@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Orders | Gilded Bean</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      body {
+        background: var(--color-surface-l0);
+        color: var(--color-text-primary);
+      }
+
+      #navbar {
+        position: sticky;
+        top: 0;
+        background: rgba(18, 18, 20, 0.95);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.08);
+        z-index: 100;
+        backdrop-filter: blur(10px);
+      }
+
+      #cart-container {
+        display: none;
+      }
+
+      /* ===== PAGE LAYOUT ===== */
+      .orders-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 var(--container-padding);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding-top: 80px;
+      }
+
+      .orders-header {
+        text-align: center;
+        margin-bottom: 64px;
+        animation: fadeInUp 0.6s var(--easing-primary);
+      }
+
+      .orders-header h1 {
+        font-family: var(--font-serif);
+        font-size: 48px;
+        font-weight: var(--font-weight-bold);
+        margin: 0 0 12px 0;
+        color: var(--color-text-primary);
+        letter-spacing: 0.5px;
+      }
+
+      .orders-header p {
+        color: var(--color-text-secondary);
+        font-size: 16px;
+        margin: 0;
+        letter-spacing: 0.3px;
+      }
+
+      /* ===== ORDERS LIST ===== */
+      .orders-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 64px;
+      }
+
+      /* ===== ORDER CARD ===== */
+      .order-card {
+        position: relative;
+        background: var(--color-surface-l1);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: var(--radius-md);
+        height: 88px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all var(--transition-fast) var(--easing-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        animation: fadeInUp 0.5s var(--easing-primary) backwards;
+      }
+
+      .order-card:nth-child(1) {
+        animation-delay: 0.1s;
+      }
+      .order-card:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .order-card:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      .order-card:nth-child(4) {
+        animation-delay: 0.4s;
+      }
+      .order-card:nth-child(5) {
+        animation-delay: 0.5s;
+      }
+
+      /* Collapsed state - flexbox header */
+      .order-card-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: 88px;
+        padding: 0 24px;
+        width: 100%;
+      }
+
+      /* Hover State */
+      .order-card:hover:not(.expanded) .order-card-header {
+        background: var(--color-surface-l2);
+      }
+
+      .order-card:hover:not(.expanded) {
+        transform: scale(1.02) translateY(-4px);
+        border-color: var(--color-primary-accent);
+        box-shadow:
+          0 8px 24px rgba(0, 0, 0, 0.3),
+          0 0 20px rgba(198, 124, 78, 0.1);
+      }
+
+      /* Thumbnail Image */
+      .order-thumbnail {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(
+          135deg,
+          var(--color-surface-l2),
+          var(--color-surface-l3)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        flex-shrink: 0;
+        overflow: hidden;
+        transition: transform 0.3s var(--easing-smooth);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      .order-card:hover:not(.expanded) .order-thumbnail {
+        transform: scale(1.05);
+      }
+
+      .order-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* Center Content */
+      .order-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .order-name {
+        font-size: 18px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .order-meta {
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        opacity: 0.8;
+      }
+
+      /* Right: Status Badge */
+      .order-badge-wrapper {
+        display: flex;
+        justify-content: flex-end;
+        flex-shrink: 0;
+      }
+
+      .order-status-badge {
+        height: 28px;
+        padding: 0 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        letter-spacing: 0.3px;
+        transition: all 0.3s var(--easing-primary);
+      }
+
+      /* Status: Pending */
+      .status-badge-pending {
+        background: rgba(212, 175, 55, 0.1);
+        color: var(--color-metallic-gold);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        animation: statusPulse 2s ease-in-out infinite;
+      }
+
+      /* Status: Completed */
+      .status-badge-completed {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+      }
+
+      /* Status: Cancelled */
+      .status-badge-cancelled {
+        background: rgba(255, 77, 79, 0.1);
+        color: var(--color-error);
+        border: 1px solid rgba(255, 77, 79, 0.3);
+      }
+
+      /* ===== EXPANDED STATE ===== */
+      .order-card.expanded {
+        height: auto;
+      }
+
+      .order-card.expanded .order-card-header {
+        background: var(--color-surface-l2);
+        border-bottom: 1px solid var(--color-border-subtle);
+        height: 88px;
+      }
+
+      .order-details {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s var(--easing-primary);
+        padding: 0 24px;
+      }
+
+      .order-card.expanded .order-details {
+        max-height: 800px;
+        padding: 24px;
+        padding-top: 0;
+      }
+
+      /* Details Content */
+      .order-details-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .order-details-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .order-details-title {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+      }
+
+      .order-details-text {
+        font-size: 14px;
+        color: var(--color-text-primary);
+        line-height: 1.6;
+        animation: fadeInUp 0.4s var(--easing-primary) backwards;
+      }
+
+      .order-details-text:nth-child(2) {
+        animation-delay: 0.05s;
+      }
+      .order-details-text:nth-child(3) {
+        animation-delay: 0.1s;
+      }
+      .order-details-text:nth-child(4) {
+        animation-delay: 0.15s;
+      }
+      .order-details-text:nth-child(5) {
+        animation-delay: 0.2s;
+      }
+
+      .order-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .order-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: var(--color-surface-l2);
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        animation: fadeInUp 0.4s var(--easing-primary) backwards;
+      }
+
+      .order-item:nth-child(1) {
+        animation-delay: 0.05s;
+      }
+      .order-item:nth-child(2) {
+        animation-delay: 0.1s;
+      }
+      .order-item:nth-child(3) {
+        animation-delay: 0.15s;
+      }
+      .order-item:nth-child(4) {
+        animation-delay: 0.2s;
+      }
+
+      .order-item-name {
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .order-item-price {
+        color: var(--color-metallic-gold);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .order-total-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: linear-gradient(
+          135deg,
+          var(--color-surface-l2),
+          var(--color-surface-l1)
+        );
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-border-subtle);
+        animation: fadeInUp 0.4s var(--easing-primary) 0.25s backwards;
+      }
+
+      .order-total-label {
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .order-total-amount {
+        font-size: 20px;
+        font-weight: var(--font-weight-bold);
+        color: var(--color-primary-accent);
+        font-family: var(--font-serif);
+      }
+
+      /* ===== EMPTY STATE ===== */
+      .orders-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 64px;
+        animation: fadeInUp 0.6s var(--easing-primary);
+      }
+
+      .orders-empty-icon {
+        font-size: 64px;
+        opacity: 0.6;
+      }
+
+      .orders-empty-title {
+        font-family: var(--font-serif);
+        font-size: 24px;
+        font-weight: var(--font-weight-bold);
+        color: var(--color-text-primary);
+      }
+
+      .orders-empty-text {
+        color: var(--color-text-secondary);
+        font-size: 14px;
+      }
+
+      /* ===== LOADING STATE ===== */
+      .orders-loading {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-secondary);
+        font-size: 14px;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--color-border-subtle);
+        border-top-color: var(--color-primary-accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+      }
+
+      /* ===== NAVIGATION ===== */
+      .orders-nav {
+        display: flex;
+        justify-content: center;
+        gap: 32px;
+        margin-top: auto;
+        margin-bottom: 40px;
+        padding-top: 32px;
+        border-top: 1px solid var(--color-border-subtle);
+      }
+
+      .orders-nav a {
+        color: var(--color-text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s var(--easing-primary);
+      }
+
+      .orders-nav a:hover {
+        color: var(--color-primary-accent);
+        transform: translateX(2px);
+      }
+
+      /* ===== ANIMATIONS ===== */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes statusPulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        .orders-header h1 {
+          font-size: 36px;
+        }
+
+        .order-card-header {
+          height: auto;
+          flex-wrap: wrap;
+          padding: 16px;
+          gap: 12px;
+        }
+
+        .order-thumbnail {
+          width: 56px;
+          height: 56px;
+        }
+
+        .order-name {
+          font-size: 16px;
+        }
+
+        .order-meta {
+          font-size: 12px;
+        }
+
+        .order-badge-wrapper {
+          width: 100%;
+          margin-top: 8px;
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar"></div>
+    <div id="cart-container"></div>
+
+    <div class="orders-container">
+      <!-- Header -->
+      <div class="orders-header">
+        <h1>Đơn Hàng Của Tôi</h1>
+        <p>Xem lịch sử mua hàng và trạng thái đơn hàng</p>
+      </div>
+
+      <!-- Orders Content -->
+      <div id="orders-content">
+        <div class="orders-loading">
+          <div class="loading-spinner"></div>
+          Đang tải...
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="orders-nav">
+        <a href="index.html">← Quay Lại Trang Chủ</a>
+        <a href="profile.html">Hồ Sơ →</a>
+      </div>
+    </div>
+
+    <script type="module">
+      import store from "../js/store/index.js";
+      import { renderNavbar } from "../js/components/navbar.js";
+      import { renderCart } from "../js/components/cart.js";
+      import { auth } from "../js/services/firebase.service.js";
+      import { initializeAuth } from "../js/core/auth-init.js";
+
+      // Initialize auth and set up listeners
+      initializeAuth();
+
+      let expandedCardId = null;
+
+      // Render orders function
+      function renderOrders(state) {
+        const container = document.getElementById("orders-content");
+        const orders = state.orders.list || [];
+
+        // Render navbar and cart on this page
+        renderNavbar(state);
+        renderCart(state);
+
+        if (orders.length === 0) {
+          container.innerHTML = `
+            <div class="orders-empty">
+              <div class="orders-empty-icon">📭</div>
+              <div class="orders-empty-title">Chưa có đơn hàng</div>
+              <div class="orders-empty-text">Hãy mua sản phẩm để bắt đầu</div>
+            </div>
+          `;
+          return;
+        }
+
+        const ordersHTML = orders.map((order, index) => {
+          const statusClass =
+            order.status === "completed"
+              ? "status-badge-completed"
+              : order.status === "cancelled"
+                ? "status-badge-cancelled"
+                : "status-badge-pending";
+
+          const statusLabel =
+            order.status === "completed"
+              ? "✓ Hoàn Thành"
+              : order.status === "cancelled"
+                ? "✗ Đã Hủy"
+                : "⏳ Đang Xử Lý";
+
+          const createdDate = order.createdAt
+            ? new Date(order.createdAt.toDate()).toLocaleDateString("vi-VN")
+            : "N/A";
+
+          const createdTime = order.createdAt
+            ? new Date(order.createdAt.toDate()).toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "N/A";
+
+          // Get first item name for display
+          const firstItemName = order.items?.[0]?.name || "Coffee";
+
+          // Build items list HTML for expanded view
+          const itemsHTML = order.items
+            .map(
+              (item) => `
+            <div class="order-item">
+              <span class="order-item-name">${item.name} x${item.quantity}</span>
+              <span class="order-item-price">${(item.price * item.quantity).toLocaleString("vi-VN")}đ</span>
+            </div>
+          `,
+            )
+            .join("");
+
+          return `
+            <div class="order-card" data-order-id="${order.id}">
+              <!-- Collapsed Header -->
+              <div class="order-card-header">
+                <div class="order-thumbnail">
+                  <span>☕</span>
+                </div>
+                
+                <div class="order-info">
+                  <div class="order-name">${firstItemName}</div>
+                  <div class="order-meta">${createdDate} • ${createdTime}</div>
+                </div>
+
+                <div class="order-badge-wrapper">
+                  <div class="order-status-badge ${statusClass}">${statusLabel}</div>
+                </div>
+              </div>
+
+              <!-- Expanded Details -->
+              <div class="order-details">
+                <div class="order-details-content">
+                  <div class="order-details-section">
+                    <div class="order-details-title">Chi Tiết Đơn Hàng</div>
+                    <div class="order-details-text">
+                      <strong>Mã đơn:</strong> ${order.id.substring(0, 12)}
+                    </div>
+                    <div class="order-details-text">
+                      <strong>Ngày tạo:</strong> ${createdDate} ${createdTime}
+                    </div>
+                    <div class="order-details-text">
+                      <strong>Trạng thái:</strong> ${statusLabel}
+                    </div>
+                  </div>
+
+                  <div class="order-details-section">
+                    <div class="order-details-title">Sản Phẩm</div>
+                    <div class="order-items-list">
+                      ${itemsHTML}
+                    </div>
+                  </div>
+
+                  <div class="order-total-section">
+                    <span class="order-total-label">Tổng Cộng</span>
+                    <span class="order-total-amount">${order.total.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = ordersHTML.join("");
+
+        // Attach event listeners to cards
+        document.querySelectorAll(".order-card").forEach((card) => {
+          card.addEventListener("click", () => {
+            const cardId = card.dataset.orderId;
+
+            // Close previously expanded card
+            if (expandedCardId && expandedCardId !== cardId) {
+              const prevCard = document.querySelector(
+                `[data-order-id="${expandedCardId}"]`,
+              );
+              if (prevCard) {
+                prevCard.classList.remove("expanded");
+              }
+            }
+
+            // Toggle current card
+            card.classList.toggle("expanded");
+            expandedCardId = card.classList.contains("expanded")
+              ? cardId
+              : null;
+          });
+        });
+      }
+
+      // Initial render
+      const initialState = store.getState();
+      renderOrders(initialState);
+
+      // Subscribe to store changes
+      store.subscribe(() => {
+        const state = store.getState();
+        renderOrders(state);
+      });
+
+      // Check authentication
+      auth.onAuthStateChanged((user) => {
+        if (!user) {
+          window.location.href = "login.html";
+        }
+      });
+    </script>
+  </body>
+</html>
