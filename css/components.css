@@ -490,15 +490,24 @@ textarea {
   flex-direction: column;
   height: 100%;
   cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
 }
 
 .product-card:hover {
   border-color: #c89b3c;
-  box-shadow: 0 8px 24px rgba(200, 155, 60, 0.2);
-  transform: translateY(-6px);
+  box-shadow:
+    0 20px 40px rgba(200, 155, 60, 0.25),
+    0 0 30px rgba(200, 155, 60, 0.15);
+  transform: translateY(-10px);
 }
 
-.product-image {
+.product-card[data-out-of-stock="true"] {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.product-image-container {
   width: 100%;
   height: 200px;
   background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
@@ -508,15 +517,20 @@ textarea {
   font-size: 3rem;
   overflow: hidden;
   position: relative;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.product-image img {
+.product-card:hover .product-image-container {
+  transform: scale(1.05);
+}
+
+.product-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.product-info {
+.product-content {
   padding: 18px;
   flex-grow: 1;
   display: flex;
@@ -539,13 +553,46 @@ textarea {
   line-height: 1.4;
 }
 
-.product-footer {
+/* Discount Badge */
+.discount-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #ff4757;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 12px;
+  box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+  z-index: 10;
+  animation: badgePulse 0.6s ease-out;
+}
+
+@keyframes badgePulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.product-pricing {
   display: flex;
-  justify-content: space-between;
+  gap: 8px;
   align-items: center;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #333;
+  margin-bottom: 8px;
+}
+
+.product-price-original {
+  font-size: 0.9rem;
+  color: #888;
+  text-decoration: line-through;
+  text-decoration-color: #888;
+  text-decoration-thickness: 2px;
 }
 
 .product-price {
@@ -553,6 +600,60 @@ textarea {
   font-weight: 700;
   color: #c89b3c;
   letter-spacing: 1px;
+}
+
+.product-stock {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.product-footer {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.add-to-cart-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #c89b3c 0%, #b8891f 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.product-card:hover .add-to-cart-btn {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(200, 155, 60, 0.3);
+}
+
+.add-to-cart-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(200, 155, 60, 0.4);
+}
+
+.add-to-cart-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.add-to-cart-btn:disabled {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  background: linear-gradient(135deg, #888 0%, #666 100%);
+  cursor: not-allowed;
+  pointer-events: auto;
 }
 
 .product-actions {
@@ -933,6 +1034,144 @@ input::placeholder {
   width: 100%;
 }
 
+/* ===== SEARCH AUTOCOMPLETE STYLES ===== */
+.search-input {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.search-input:focus {
+  border-color: rgba(200, 155, 60, 0.8) !important;
+  box-shadow: 0 0 16px rgba(200, 155, 60, 0.2) !important;
+  background: rgba(42, 42, 42, 0.95) !important;
+}
+
+.search-suggestions {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200, 155, 60, 0.3) rgba(26, 26, 28, 0);
+}
+
+.search-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.search-suggestions::-webkit-scrollbar-thumb {
+  background: rgba(200, 155, 60, 0.3);
+  border-radius: 3px;
+}
+
+.search-suggestions::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 155, 60, 0.5);
+}
+
+.search-suggestion-item {
+  transition: all 0.2s ease !important;
+}
+
+.search-suggestion-item:hover {
+  background: rgba(200, 155, 60, 0.15) !important;
+  padding-left: 18px !important;
+}
+
+.search-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* ===== AVATAR STYLES ===== */
+.navbar-avatar,
+.navbar-avatar-fallback,
+.navbar-avatar-guest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer;
+}
+
+.navbar-avatar {
+  border: 2px solid #555 !important;
+  object-fit: cover;
+}
+
+.navbar-avatar:hover {
+  transform: rotate(15deg) scale(1.1) !important;
+  border-color: #c89b3c !important;
+  box-shadow: 0 0 12px rgba(200, 155, 60, 0.5) !important;
+}
+
+.navbar-avatar-fallback {
+  background: linear-gradient(
+    135deg,
+    rgba(200, 155, 60, 0.3),
+    rgba(200, 155, 60, 0.1)
+  );
+  color: #fff;
+  font-weight: 600;
+  border: 2px solid rgba(200, 155, 60, 0.4);
+  font-size: 1rem;
+}
+
+.navbar-avatar-fallback:hover {
+  transform: rotate(15deg) scale(1.1) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(200, 155, 60, 0.5),
+    rgba(200, 155, 60, 0.3)
+  ) !important;
+  border-color: #c89b3c !important;
+  box-shadow: 0 0 12px rgba(200, 155, 60, 0.5) !important;
+}
+
+.navbar-avatar-guest {
+  background: rgba(51, 51, 51, 0.8);
+  color: #fff;
+  font-weight: 600;
+  border: 2px solid rgba(85, 85, 85, 0.6);
+  font-size: 0.95rem;
+}
+
+.navbar-avatar-guest:hover {
+  transform: rotate(15deg) scale(1.1) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(200, 155, 60, 0.3),
+    rgba(200, 155, 60, 0.1)
+  ) !important;
+  border-color: #c89b3c !important;
+  box-shadow: 0 0 12px rgba(200, 155, 60, 0.5) !important;
+}
+
+/* ===== BALANCE BADGE ===== */
+.balance-badge {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 10px !important;
+}
+
+.balance-badge:hover {
+  border-color: rgba(200, 155, 60, 0.8) !important;
+  box-shadow: 0 0 12px rgba(200, 155, 60, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+/* ===== CART BUTTON ===== */
+.cart-btn {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.cart-btn:hover {
+  transform: scale(1.2) rotate(10deg) !important;
+}
+
+.cart-btn:active {
+  transform: scale(1.1) rotate(10deg) !important;
+}
+
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   #cart {
@@ -1111,4 +1350,82 @@ input::placeholder {
   100% {
     transform: scale(1) rotate(0deg);
   }
+}
+
+/* ===== HOLD-TO-DELETE ANIMATIONS ===== */
+@keyframes fillProgress {
+  from {
+    stroke-dashoffset: 251.2; /* Full circumference for a 40px radius circle */
+  }
+  to {
+    stroke-dashoffset: 0; /* Completely filled */
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Delete button with hold-to-delete styling */
+.action-btn.delete-btn {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.action-btn.delete-btn:hover {
+  color: #ff6b6b;
+  transform: scale(1.1);
+}
+
+/* Holding state - red and shaking */
+.action-btn.delete-btn.is-holding {
+  color: #ff3333;
+  animation: shake 0.3s ease-in-out infinite;
+}
+
+/* Progress overlay container */
+.action-btn.delete-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 51, 51, 0.1) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show progress overlay when holding */
+.action-btn.delete-btn.is-holding::before {
+  opacity: 1;
+}
+
+/* Deleted confirmation state */
+.action-btn.delete-btn.deleted {
+  color: #4caf50;
+  animation: none;
+  pointer-events: none;
 }

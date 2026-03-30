@@ -575,14 +575,19 @@
 
           // Build items list HTML for expanded view
           const itemsHTML = order.items
-            .map(
-              (item) => `
+            .map((item) => {
+              // Calculate final price (use finalPrice if available, otherwise calculate from price and discount)
+              const finalPrice =
+                item.finalPrice ||
+                item.price * (1 - (item.discount || 0) / 100);
+              const itemTotal = finalPrice * item.quantity;
+              return `
             <div class="order-item">
               <span class="order-item-name">${item.name} x${item.quantity}</span>
-              <span class="order-item-price">${(item.price * item.quantity).toLocaleString("vi-VN")}đ</span>
+              <span class="order-item-price">${itemTotal.toLocaleString("vi-VN")}đ</span>
             </div>
-          `,
-            )
+          `;
+            })
             .join("");
 
           return `

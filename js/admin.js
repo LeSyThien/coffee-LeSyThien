@@ -25,6 +25,7 @@ import {
   updateProduct,
   deleteProduct,
   toggleProductAvailability,
+  toggleShowOnHome,
   logoutUser,
 } from "../js/services/firebase.service.js";
 import {
@@ -382,10 +383,11 @@ function renderProductsTable(products) {
       </div>
       <div class="row-actions">
         <button class="action-btn edit-btn" data-id="${p.id}" title="Edit" data-tooltip="Edit product">✏️</button>
+        <button class="action-btn toggle-show-home-btn" data-id="${p.id}" title="Toggle Show on Home" style="color: ${p.showOnHome ? '#c89b3c' : '#666'}; transition: color 0.3s ease;">🏠</button>
         <button class="action-btn toggle-availability-btn" data-id="${p.id}" title="Toggle availability" data-tooltip="Toggle availability">
           ${p.available ? "🔒" : "🔓"}
         </button>
-        <button class="action-btn delete-btn" data-id="${p.id}" title="Delete" data-tooltip="Delete product">🗑️</button>
+        <button class="action-btn delete-btn" data-id="${p.id}" title="Hold 3s to Delete" data-tooltip="Hold 3s to Delete">🗑️</button>
       </div>
     </div>
   `,
@@ -403,11 +405,38 @@ function renderProductsTable(products) {
   });
 
   container.querySelectorAll(".delete-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("mousedown", (e) => {
+      e.stopPropagation();
+    });
+    const productId = btn.dataset.id;
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      attachHoldToDelete(btn, productId, product.name);
+    }
+  });
+
+  container.querySelectorAll(".toggle-show-home-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const productId = btn.dataset.id;
       const product = products.find((p) => p.id === productId);
-      if (product) openDeleteModal(product);
+      if (!product) return;
+
+      btn.disabled = true;
+      btn.style.opacity = "0.5";
+      try {
+        await toggleShowOnHome(productId, !product.showOnHome);
+        btn.style.color = (!product.showOnHome) ? '#c89b3c' : '#666';
+        showToast(
+          `Product "${product.name}" is now ${!product.showOnHome ? "shown" : "hidden"} on home page`,
+          "success",
+        );
+      } catch (error) {
+        showToast("Failed to toggle show on home: " + error.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+      }
     });
   });
 
@@ -983,7 +1012,7 @@ function renderOrdersSummary(orders) {
 
   // Attach hold-to-delete handlers
   container.querySelectorAll(".btn-hold-delete").forEach(btn => {
-    attachHoldToDelete(btn, async () => {
+    attachHoldToDeleteOrder(btn, async () => {
       const orderId = btn.dataset.orderId;
       try {
         await updateOrderStatus(orderId, "rejected");
@@ -1003,36 +1032,118 @@ function renderOrdersSummary(orders) {
   }, 100);
 }
 
-function attachHoldToDelete(button, onComplete) {
+function attachHoldToDelete(button, productId, productName) {
   let holdTimer = null;
   let isHolding = false;
+  let progressInterval = null;
+  let holdProgress = 0;
+  const holdDuration = 3000;
 
   button.addEventListener("mousedown", () => {
     isHolding = true;
-    button.classList.add("holding");
+    holdProgress = 0;
+    button.classList.add("is-holding");
 
-    holdTimer = setTimeout(() => {
-      button.classList.remove("holding");
+    // Start progress tracking for visual feedback
+    progressInterval = setInterval(() => {
+      holdProgress += 50;
+      const progress = (holdProgress / holdDuration) * 100;
+      // Update CSS variable for potential progress bar  
+      button.style.setProperty("--hold-progress", progress + "%");
+    }, 50);
+
+    // Timer for actual delete after 3 seconds
+    holdTimer = setTimeout(async () => {
+      button.classList.remove("is-holding");
       button.classList.add("deleted");
-      button.textContent = "✓ Rejected";
+      button.textContent = "✓ Deleted";
       button.disabled = true;
-      onComplete();
+      clearInterval(progressInterval);
+
+      // Execute delete
+      try {
+        await deleteProduct(productId);
+        showToast(`Product "${productName}" deleted successfully`, "success");
+      } catch (error) {
+        showToast(`Failed to delete product: ${error.message}`, "error");
+        button.classList.remove("deleted");
+        button.textContent = "🗑️";
+        button.disabled = false;
+      }
+
       isHolding = false;
-    }, 3000);
+    }, holdDuration);
   });
 
   button.addEventListener("mouseup", () => {
     if (isHolding && holdTimer) {
       clearTimeout(holdTimer);
-      button.classList.remove("holding");
+      clearInterval(progressInterval);
+      button.classList.remove("is-holding");
+      button.style.setProperty("--hold-progress", "0%");
       isHolding = false;
     }
   });
 
   button.addEventListener("mouseleave", () => {
-    if (holdTimer) {
+    if (isHolding && holdTimer) {
       clearTimeout(holdTimer);
+      clearInterval(progressInterval);
+      button.classList.remove("is-holding");
+      button.style.setProperty("--hold-progress", "0%");
+      isHolding = false;
+    }
+  });
+}
+
+// For order rejection - simpler version without product name
+function attachHoldToDeleteOrder(button, onComplete) {
+  let holdTimer = null;
+  let isHolding = false;
+  let progressInterval = null;
+  let holdProgress = 0;
+  const holdDuration = 3000;
+
+  button.addEventListener("mousedown", () => {
+    isHolding = true;
+    holdProgress = 0;
+    button.classList.add("holding");
+
+    // Start progress tracking for visual feedback
+    progressInterval = setInterval(() => {
+      holdProgress += 50;
+      const progress = (holdProgress / holdDuration) * 100;
+      button.style.setProperty("--hold-progress", progress + "%");
+    }, 50);
+
+    // Timer for actual delete after 3 seconds
+    holdTimer = setTimeout(() => {
       button.classList.remove("holding");
+      button.classList.add("deleted");
+      button.textContent = "✓ Rejected";
+      button.disabled = true;
+      clearInterval(progressInterval);
+      onComplete();
+      isHolding = false;
+    }, holdDuration);
+  });
+
+  button.addEventListener("mouseup", () => {
+    if (isHolding && holdTimer) {
+      clearTimeout(holdTimer);
+      clearInterval(progressInterval);
+      button.classList.remove("holding");
+      button.style.setProperty("--hold-progress", "0%");
+      isHolding = false;
+    }
+  });
+
+  button.addEventListener("mouseleave", () => {
+    if (isHolding && holdTimer) {
+      clearTimeout(holdTimer);
+      clearInterval(progressInterval);
+      button.classList.remove("holding");
+      button.style.setProperty("--hold-progress", "0%");
       isHolding = false;
     }
   });
@@ -1173,6 +1284,8 @@ function openEditDrawer(product) {
     Number(product.discount) || 0;
   document.getElementById("form-available").value =
     product.available === false ? "false" : "true";
+  document.getElementById("form-show-on-home").checked =
+    product.showOnHome === true;
 
   document.getElementById("edit-drawer").classList.add("open");
   document.getElementById("drawer-overlay").classList.add("open");
@@ -1196,6 +1309,7 @@ function closeEditDrawer() {
   document.getElementById("form-stock").value = "";
   document.getElementById("form-discount").value = "";
   document.getElementById("form-available").value = "true";
+  document.getElementById("form-show-on-home").checked = false;
 }
 
 // ===== DELETE MODAL =====
@@ -1419,6 +1533,7 @@ function initializeAdmin() {
     document.getElementById("form-stock").value = "";
     document.getElementById("form-discount").value = "";
     document.getElementById("form-available").value = "true";
+    document.getElementById("form-show-on-home").checked = false; // Reset checkbox
 
     document.getElementById("edit-drawer").classList.add("open");
     overlay.classList.add("open");
@@ -1449,12 +1564,14 @@ function initializeAdmin() {
     const description = document.getElementById("form-desc").value.trim();
     const price = Number(document.getElementById("form-price").value) || 0;
     const image = document.getElementById("form-image").value.trim();
-    const category = document.getElementById("form-category").value.trim();
+    const category = document.getElementById("form-category").value;
     const stock = Number(document.getElementById("form-stock").value) || 0;
     const discount =
       Number(document.getElementById("form-discount").value) || 0;
     const available =
       document.getElementById("form-available").value === "true";
+    const showOnHome =
+      document.getElementById("form-show-on-home").checked === true;
 
     if (!name || price <= 0 || stock < 0 || discount < 0 || discount > 100) {
       showToast(
@@ -1476,6 +1593,7 @@ function initializeAdmin() {
       stock,
       discount,
       available,
+      showOnHome,
       createdAt: new Date(),
     };
 

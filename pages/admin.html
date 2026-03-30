@@ -764,8 +764,17 @@
           ><input id="form-image" type="url" placeholder="https://..." />
         </div>
         <div class="form-group">
-          <label>Category</label
-          ><input id="form-category" type="text" placeholder="Category" />
+          <label>Category</label>
+          <select id="form-category" style="color: #fff; background: #1a1a1c; border: 1px solid #333;">
+            <option value="" style="color: #fff; background: #1a1a1c;">Select Category</option>
+            <option value="Espresso" style="color: #fff; background: #1a1a1c;">Espresso</option>
+            <option value="Latte" style="color: #fff; background: #1a1a1c;">Latte</option>
+            <option value="Cappuccino" style="color: #fff; background: #1a1a1c;">Cappuccino</option>
+            <option value="Matcha" style="color: #fff; background: #1a1a1c;">Matcha</option>
+            <option value="Cold Brew" style="color: #fff; background: #1a1a1c;">Cold Brew</option>
+            <option value="Coffee" style="color: #fff; background: #1a1a1c;">Coffee</option>
+            <option value="Signature" style="color: #fff; background: #1a1a1c;">Signature</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Stock</label
@@ -787,6 +796,12 @@
             <option value="true">Yes</option>
             <option value="false">No</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <input id="form-show-on-home" type="checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+            <span>Show on Homepage</span>
+          </label>
         </div>
         <div class="form-actions">
           <button id="save-product-btn" class="btn btn-primary">Save</button

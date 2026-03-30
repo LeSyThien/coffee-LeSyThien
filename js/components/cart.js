@@ -45,7 +45,7 @@ export function renderCart(state) {
             (item) => `
         <div class="cart-item">
           <span>${item.name} x${item.quantity}</span>
-          <span>${(item.price * item.quantity).toLocaleString()}đ</span>
+          <span>${((item.finalPrice || item.price) * item.quantity).toLocaleString()}đ</span>
         </div>
       `,
           )
@@ -147,13 +147,16 @@ async function handleCheckout(items, total) {
     // Format: timestamp + random ID
     const clientRequestId = `${user.uid}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // Prepare order data
+    // Prepare order data with finalPrice details
     const orderData = {
       items: items.map((item) => ({
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: item.price, // original price
+        finalPrice: item.finalPrice || item.price, // discounted price
+        discount: Number(item.discount) || 0, // discount percentage
         quantity: item.quantity,
+        itemTotal: (item.finalPrice || item.price) * item.quantity, // final total for this item
       })),
       total: total,
     };

@@ -766,3 +766,39 @@ code {
     transform: translate(-50%, -100px) scale(1.2);
   }
 }
+
+@keyframes logoBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes bannerMorphOut {
+  0% {
+    opacity: 1;
+    filter: blur(0px) scale(1);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(10px) scale(1.1);
+    transform: scale(1.1);
+  }
+}
+
+@keyframes bannerMorphIn {
+  0% {
+    opacity: 0;
+    filter: blur(10px) scale(0.9);
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px) scale(1);
+    transform: scale(1);
+  }
+}

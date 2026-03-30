@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menu - Premium Coffee</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <style>
+      .products-page {
+        padding-top: 90px;
+        min-height: 100vh;
+        background: var(--color-bg-primary);
+      }
+
+      .products-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 24px;
+      }
+
+      .products-header {
+        margin-bottom: 48px;
+        text-align: center;
+      }
+
+      .products-header h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: 12px;
+        background: linear-gradient(135deg, #c89b3c, #fff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .products-header p {
+        font-size: 1.1rem;
+        color: var(--color-text-secondary);
+        letter-spacing: 0.5px;
+      }
+
+      .products-filters {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 40px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .filter-btn {
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1.5px solid rgba(200, 155, 60, 0.3);
+        border-radius: 8px;
+        color: #ccc;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        letter-spacing: 0.3px;
+      }
+
+      .filter-btn:hover,
+      .filter-btn.active {
+        background: linear-gradient(135deg, #c89b3c 0%, #b8891f 100%);
+        color: white;
+        border-color: #c89b3c;
+        transform: scale(1.05);
+      }
+
+      .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 28px;
+        margin-bottom: 40px;
+      }
+
+      .load-more-btn {
+        display: block;
+        margin: 40px auto;
+        padding: 14px 32px;
+        background: linear-gradient(135deg, #c89b3c 0%, #b8891f 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(200, 155, 60, 0.3);
+      }
+
+      .load-more-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(200, 155, 60, 0.5);
+      }
+
+      .load-more-btn:active {
+        transform: translateY(0);
+      }
+
+      .load-more-btn.hidden {
+        display: none;
+      }
+
+      .no-products {
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+      }
+
+      .no-products-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+      }
+
+      .no-products p {
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <header id="navbar"></header>
+
+    <main class="products-page">
+      <div class="products-container">
+        <div class="products-header">
+          <h1>Our Menu</h1>
+          <p>Discover our complete collection of premium coffee blends</p>
+        </div>
+
+        <div class="products-filters">
+          <button class="filter-btn active" data-filter="all">
+            All Products
+          </button>
+          <button class="filter-btn" data-filter="espresso">Espresso</button>
+          <button class="filter-btn" data-filter="latte">Latte</button>
+          <button class="filter-btn" data-filter="cappuccino">
+            Cappuccino
+          </button>
+          <button class="filter-btn" data-filter="matcha">Matcha</button>
+        </div>
+
+        <div id="products" class="products-grid"></div>
+
+        <button id="load-more-btn" class="load-more-btn hidden">
+          Load More Products
+        </button>
+
+        <div id="no-products" class="no-products hidden">
+          <div class="no-products-icon">☕</div>
+          <p>No products found</p>
+          <p style="font-size: 0.95rem; color: #666">
+            Try adjusting your filters or search
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import { initRender } from "../js/core/render.js";
+      import store from "../js/store/index.js";
+      import { ACTION_TYPES } from "../js/store/actions.js";
+      import { renderProducts } from "../js/components/products.js";
+
+      // Initialize
+      initRender();
+      initializeAuth();
+
+      // Get search query from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchQuery = urlParams.get("search");
+      if (searchQuery) {
+        store.dispatch({
+          type: ACTION_TYPES.SET_SEARCH_QUERY,
+          payload: searchQuery,
+        });
+      }
+
+      // Re-render products when state changes
+      store.subscribe(() => {
+        const state = store.getState();
+        renderProducts(state);
+      });
+
+      // Initial render
+      const state = store.getState();
+      renderProducts(state);
+
+      // Filter buttons logic
+      const filterBtns = document.querySelectorAll(".filter-btn");
+      filterBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          filterBtns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          // TODO: Implement category filter logic
+        });
+      });
+
+      // Load more button (if implementing pagination)
+      const loadMoreBtn = document.getElementById("load-more-btn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", () => {
+          // TODO: Implement load more logic
+        });
+      }
+    </script>
+  </body>
+</html>

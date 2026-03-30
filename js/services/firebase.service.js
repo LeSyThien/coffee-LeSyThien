@@ -24,13 +24,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyBlOUebYGGUMMOblOi3plg0tPK0qG831gw",
-authDomain: "coffee-c5cec.firebaseapp.com",
-projectId: "coffee-c5cec",
-storageBucket: "coffee-c5cec.firebasestorage.app",
-messagingSenderId: "1009919056362",
-appId: "1:1009919056362:web:2e8eabc12192b4b2c8fa93",
-measurementId: "G-DE83KMT60V",
+  apiKey: "AIzaSyBlOUebYGGUMMOblOi3plg0tPK0qG831gw",
+  authDomain: "coffee-c5cec.firebaseapp.com",
+  projectId: "coffee-c5cec",
+  storageBucket: "coffee-c5cec.firebasestorage.app",
+  messagingSenderId: "1009919056362",
+  appId: "1:1009919056362:web:2e8eabc12192b4b2c8fa93",
+  measurementId: "G-DE83KMT60V",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -277,6 +277,16 @@ export const toggleProductAvailability = async (productId, newAvailability) => {
   const productRef = doc(db, "products", productId);
   await updateDoc(productRef, {
     available: !!newAvailability,
+    updatedAt: new Date(),
+  });
+  return { success: true };
+};
+
+export const toggleShowOnHome = async (productId, newShowOnHome) => {
+  if (!productId) throw new Error("Product ID is required.");
+  const productRef = doc(db, "products", productId);
+  await updateDoc(productRef, {
+    showOnHome: !!newShowOnHome,
     updatedAt: new Date(),
   });
   return { success: true };
