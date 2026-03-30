@@ -350,3 +350,148 @@ export const ensureUserDocument = async (userId, initialData = {}) => {
     throw error;
   }
 };
+
+// 6. Review Management
+export const saveReview = async (
+  productId,
+  rating,
+  comment,
+  orderId = null,
+) => {
+  if (!productId) throw new Error("Product ID is required");
+  if (!rating || rating < 1 || rating > 5)
+    throw new Error("Rating must be between 1 and 5");
+  if (!comment || comment.trim().length === 0)
+    throw new Error("Comment is required");
+
+  try {
+    const { addDoc, serverTimestamp } =
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+    if (!auth.currentUser) throw new Error("User not authenticated");
+
+    const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+    const userName = userDoc.exists() ? userDoc.data().name : "Anonymous";
+
+    const reviewRef = await addDoc(collection(db, "reviews"), {
+      productId,
+      userId: auth.currentUser.uid,
+      userName,
+      rating: Number(rating),
+      comment: comment.trim(),
+      orderId: orderId || null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // Update product rating
+    await updateProductRating(productId);
+
+    return { success: true, reviewId: reviewRef.id };
+  } catch (error) {
+    console.error("Save review failed:", error);
+    throw error;
+  }
+};
+
+export const getProductReviews = async (productId) => {
+  if (!productId) throw new Error("Product ID is required");
+
+  try {
+    const { getDocs, query, where, orderBy } =
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+    const q = query(
+      collection(db, "reviews"),
+      where("productId", "==", productId),
+      orderBy("createdAt", "desc"),
+    );
+
+    const snapshot = await getDocs(q);
+    const reviews = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      reviews.push({
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      });
+    });
+
+    return reviews;
+  } catch (error) {
+    console.error("Get product reviews failed:", error);
+    return [];
+  }
+};
+
+export const updateProductRating = async (productId) => {
+  if (!productId) throw new Error("Product ID is required");
+
+  try {
+    const reviews = await getProductReviews(productId);
+
+    if (reviews.length === 0) {
+      await updateDoc(doc(db, "products", productId), {
+        avgRating: 0,
+        reviewCount: 0,
+        updatedAt: new Date(),
+      });
+      return { avgRating: 0, reviewCount: 0 };
+    }
+
+    const totalRating = reviews.reduce(
+      (sum, review) => sum + (review.rating || 0),
+      0,
+    );
+    const avgRating = Number((totalRating / reviews.length).toFixed(1));
+    const reviewCount = reviews.length;
+
+    await updateDoc(doc(db, "products", productId), {
+      avgRating,
+      reviewCount,
+      updatedAt: new Date(),
+    });
+
+    return { avgRating, reviewCount };
+  } catch (error) {
+    console.error("Update product rating failed:", error);
+    throw error;
+  }
+};
+
+export const getAllReviews = async () => {
+  try {
+    const { getDocs, query, orderBy } =
+      await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+    const q = query(collection(db, "reviews"), orderBy("createdAt", "desc"));
+
+    const snapshot = await getDocs(q);
+    const reviews = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      // Fetch product info
+      const productDoc = await getDoc(doc(db, "products", data.productId));
+      const productName = productDoc.exists()
+        ? productDoc.data().name
+        : "Unknown Product";
+
+      reviews.push({
+        id: doc.id,
+        productName,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      });
+    }
+
+    return reviews;
+  } catch (error) {
+    console.error("Get all reviews failed:", error);
+    return [];
+  }
+};

@@ -42,9 +42,11 @@ let hasInitialized = false;
 let ordersUnsub = null;
 let productsUnsub = null;
 let transactionsUnsub = null;
+let depositsUnsub = null;
 let currentOrders = [];
 let currentProducts = [];
 let currentTransactions = [];
+let currentDeposits = [];
 let usersCache = new Map(); // Cache for user emails
 let editingProductId = null;
 let revenueChart = null;
@@ -475,12 +477,35 @@ function renderOrdersTable(orders) {
   const container = document.getElementById("orders-list");
   if (!container) return;
 
-  if (orders.length === 0) {
+  // Determine if we're showing archived or active orders
+  const showArchived = localStorage.getItem("orders-tab") === "history";
+
+  // Filter: hide completed orders older than 24 hours (archive logic)
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  const visibleOrders = showArchived
+    ? orders.filter(order => {
+        if (order.status !== "completed") return false;
+        const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
+        return orderDate <= twentyFourHoursAgo;
+      })
+    : orders.filter(order => {
+        if (order.status === "completed") {
+          const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
+          return orderDate > twentyFourHoursAgo;
+        }
+        return true;
+      });
+
+  if (visibleOrders.length === 0) {
+    const message = showArchived 
+      ? "No archived orders" 
+      : "No active orders";
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📦</div>
-        <h3>No orders yet</h3>
-        <p>Orders will appear here when customers make purchases</p>
+        <h3>${message}</h3>
+        <p>${showArchived ? "Completed orders older than 24 hours appear here" : "Orders will appear here when customers make purchases"}</p>
       </div>
     `;
     return;
@@ -491,14 +516,28 @@ function renderOrdersTable(orders) {
       <div class="table-header">
         <div style="width: 40px"></div>
         <div>Order</div>
+        <div>Email</div>
         <div>Total</div>
         <div>Status</div>
         <div>Actions</div>
       </div>
-      ${orders
+      ${visibleOrders
         .slice(0, 10)
         .map(
-          (order, i) => `
+          (order, i) => {
+            const statusColor = 
+              order.status === "pending" ? "#d4af37" :
+              order.status === "shipping" ? "#2196f3" :
+              order.status === "completed" ? "#4caf50" :
+              "#999";
+            
+            const statusLabel =
+              order.status === "pending" ? "⏳ Pending" :
+              order.status === "shipping" ? "🚚 Shipping" :
+              order.status === "completed" ? "✓ Completed" :
+              order.status;
+
+            return `
         <div class="table-row" style="animation-delay: ${i * 50}ms">
           <div class="product-image">📦</div>
           <div class="product-info">
@@ -507,65 +546,70 @@ function renderOrdersTable(orders) {
           </div>
           <div class="product-price">${formatCurrency(Number(order.total) || 0)}</div>
           <div>
-            <span class="status-badge ${
-              order.status === "pending"
-                ? "status-unavailable"
-                : order.status === "completed"
-                  ? "status-available"
-                  : "status-unavailable"
-            }">
-              ${order.status || "pending"}
+            <span class="status-badge" style="
+              background: ${statusColor}22;
+              color: ${statusColor};
+              border: 1px solid ${statusColor}44;
+            ">
+              ${statusLabel}
             </span>
           </div>
           <div class="row-actions">
             ${
-              order.status === "pending"
+              !showArchived && order.status === "pending"
                 ? `
-              <button class="action-btn complete-order-btn" data-id="${order.id}" title="Complete" style="color: #4caf50">✓</button>
+              <button class="action-btn ship-order-btn" data-id="${order.id}" title="Ship Order" style="color: #2196f3">🚚</button>
               <button class="action-btn cancel-order-btn" data-id="${order.id}" title="Cancel" style="color: #ff4d4f">✗</button>
             `
-                : `<span style="font-size: 12px; color: var(--text-muted)">Final</span>`
+                : showArchived
+                ? `<span style="font-size: 12px; color: #4caf50;">✓ Archived</span>`
+                : !showArchived && order.status === "shipping"
+                ? `<span style="font-size: 12px; color: #2196f3;">Awaiting confirmation...</span>`
+                : `<span style="font-size: 12px; color: var(--text-muted)">—</span>`
             }
           </div>
         </div>
-      `,
+      `;
+          }
         )
         .join("")}
     </div>
   `;
 
   // Attach order action listeners
-  container.querySelectorAll(".complete-order-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const orderId = btn.dataset.id;
-      if (btn.disabled) return;
-      btn.disabled = true;
-      try {
-        await updateOrderStatus(orderId, "completed");
-        showToast("Order completed successfully!", "success");
-      } catch (error) {
-        showToast("Failed to update order: " + error.message, "error");
-      } finally {
-        btn.disabled = false;
-      }
+  if (!showArchived) {
+    container.querySelectorAll(".ship-order-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const orderId = btn.dataset.id;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+          await updateOrderStatus(orderId, "shipping");
+          showToast("Order marked as shipping!", "success");
+        } catch (error) {
+          showToast("Failed to update order: " + error.message, "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
     });
-  });
 
-  container.querySelectorAll(".cancel-order-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const orderId = btn.dataset.id;
-      if (btn.disabled) return;
-      btn.disabled = true;
-      try {
-        await updateOrderStatus(orderId, "cancelled");
-        showToast("Order cancelled", "warning");
-      } catch (error) {
-        showToast("Failed to update order: " + error.message, "error");
-      } finally {
-        btn.disabled = false;
-      }
+    container.querySelectorAll(".cancel-order-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const orderId = btn.dataset.id;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        try {
+          await updateOrderStatus(orderId, "cancelled");
+          showToast("Order cancelled", "warning");
+        } catch (error) {
+          showToast("Failed to update order: " + error.message, "error");
+        } finally {
+          btn.disabled = false;
+        }
+      });
     });
-  });
+  }
 
   // Trigger animations
   setTimeout(() => {
@@ -573,6 +617,351 @@ function renderOrdersTable(orders) {
       row.style.opacity = "1";
     });
   }, 100);
+}
+
+// ===== DEPOSITS TABLE (NEW) =====
+function renderDepositsTable(deposits) {
+  const container = document.getElementById("deposits-list");
+  if (!container) return;
+
+  if (deposits.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🏦</div>
+        <h3>No pending deposits</h3>
+        <p>Deposit requests will appear here for approval</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Get user emails for all deposits
+  const renderPromises = deposits.map(async (dep) => {
+    const userEmail = await getUserEmail(dep.userId);
+    return { ...dep, userEmail };
+  });
+
+  Promise.all(renderPromises).then((depositsWithEmails) => {
+    container.innerHTML = `
+      <div class="products-table">
+        <div class="table-header">
+          <div style="width: 40px"></div>
+          <div>User</div>
+          <div>Amount</div>
+          <div>Payment Method</div>
+          <div>Status</div>
+          <div>Timestamp</div>
+          <div>Actions</div>
+        </div>
+        ${depositsWithEmails
+          .map(
+            (dep, i) => `
+          <div class="table-row" style="animation-delay: ${i * 50}ms">
+            <div class="product-image">🏦</div>
+            <div class="product-info">
+              <div class="product-name">${dep.userEmail}</div>
+              <div class="product-desc">${dep.id?.substring(0, 12) || "Unknown"}</div>
+            </div>
+            <div class="product-price">${formatCurrency(Number(dep.amount) || 0)}</div>
+            <div style="font-size: 14px;">
+              ${dep.paymentMethod || "unknown"}
+            </div>
+            <div>
+              <span class="status-badge ${
+                dep.status === "pending"
+                  ? "status-pending"
+                  : dep.status === "approved"
+                    ? "status-success"
+                    : dep.status === "rejected"
+                      ? "status-rejected"
+                      : "status-unavailable"
+              }">
+                ${dep.status || "pending"}
+              </span>
+            </div>
+            <div class="product-price">${formatDate(dep.createdAt?.toDate?.() || new Date())}</div>
+            <div class="row-actions">
+              ${
+                dep.status === "pending"
+                  ? `
+                <button class="action-btn approve-deposit-btn" data-id="${dep.id}" data-user-id="${dep.userId}" data-amount="${dep.amount}" title="Approve" style="color: #4caf50">✓</button>
+                <button class="action-btn reject-deposit-btn" data-id="${dep.id}" data-user-id="${dep.userId}" data-amount="${dep.amount}" title="Reject with Reason" style="color: #ff4d4f">✗</button>
+              `
+                  : `<span style="font-size: 12px; color: var(--text-muted)">Final</span>`
+              }
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    `;
+
+    // Attach event listeners
+    attachDepositListeners(container);
+
+    // Trigger animations
+    setTimeout(() => {
+      container.querySelectorAll(".table-row").forEach((row) => {
+        row.style.opacity = "1";
+      });
+    }, 100);
+  });
+}
+
+function attachDepositListeners(container) {
+  container.querySelectorAll(".approve-deposit-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const depositId = btn.dataset.id;
+      if (btn.disabled) return;
+      btn.disabled = true;
+      try {
+        await approveDepositHandler({ depositId });
+        showToast("Deposit approved successfully!", "success");
+      } catch (error) {
+        showToast("Failed to approve deposit: " + error.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  container.querySelectorAll(".reject-deposit-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const depositId = btn.dataset.id;
+      const amount = btn.dataset.amount;
+      openRejectDepositModal(depositId, amount);
+    });
+  });
+}
+
+// ===== REJECT DEPOSIT MODAL =====
+function openRejectDepositModal(depositId, amount) {
+  // Create modal if it doesn't exist
+  let modal = document.getElementById("reject-deposit-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "reject-deposit-modal";
+    modal.innerHTML = `
+      <div id="reject-deposit-overlay" class="modal-overlay"></div>
+      <div class="modal-content" style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #121214;
+        border: 1px solid #1c1c1e;
+        border-radius: 12px;
+        padding: 28px;
+        max-width: 500px;
+        width: 90%;
+        z-index: 2000;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      ">
+        <h3 style="margin-bottom: 16px; color: #d4af37;">Từ Chối Nạp Tiền</h3>
+        <p style="color: #aaa; margin-bottom: 16px;">
+          Số tiền: <strong style="color: #fff;">${formatCurrency(amount)}</strong>
+        </p>
+        <label style="display: block; margin-bottom: 12px; color: #aaa; font-size: 14px;">
+          Lý do từ chối:
+        </label>
+        <textarea id="reject-reason" placeholder="Ví dụ: Ảnh chuyển khoản mờ quá, chưa rõ số tiền..." style="
+          width: 100%;
+          height: 100px;
+          padding: 10px;
+          background: #0a0a0b;
+          color: #fff;
+          border: 1px solid #1c1c1e;
+          border-radius: 8px;
+          font-family: inherit;
+          resize: vertical;
+        "></textarea>
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+          <button id="cancel-reject-btn" style="
+            flex: 1;
+            padding: 10px;
+            background: #1c1c1e;
+            color: #aaa;
+            border: 1px solid #1c1c1e;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+          ">Hủy</button>
+          <button id="confirm-reject-btn" style="
+            flex: 1;
+            padding: 10px;
+            background: #ff4d4f;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+          ">Từ Chối</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // Set data attributes
+  modal.dataset.depositId = depositId;
+
+  // Show modal
+  const overlay = document.getElementById("reject-deposit-overlay");
+  modal.style.display = "block";
+  overlay.style.display = "block";
+
+  // Focus textarea
+  document.getElementById("reject-reason").value = "";
+  setTimeout(() => {
+    document.getElementById("reject-reason").focus();
+  }, 100);
+
+  // Attach handlers
+  const cancelBtn = document.getElementById("cancel-reject-btn");
+  const confirmBtn = document.getElementById("confirm-reject-btn");
+
+  const closeModal = () => {
+    modal.style.display = "none";
+    overlay.style.display = "none";
+  };
+
+  cancelBtn.onclick = closeModal;
+  overlay.onclick = closeModal;
+
+  confirmBtn.onclick = async () => {
+    const reason = document.getElementById("reject-reason").value.trim();
+    if (!reason) {
+      showToast("Vui lòng nhập lý do từ chối", "error");
+      return;
+    }
+
+    confirmBtn.disabled = true;
+    const originalText = confirmBtn.textContent;
+    confirmBtn.textContent = "⏳ Processing...";
+
+    try {
+      await rejectDepositHandler({ depositId, reason });
+      showToast("Deposit rejected successfully!", "success");
+      closeModal();
+    } catch (error) {
+      showToast("Failed to reject deposit: " + error.message, "error");
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = originalText;
+    }
+  };
+}
+
+async function approveDepositHandler({ depositId }) {
+  try {
+    await verifyAdminClaim();
+
+    await runTransaction(db, async (transaction) => {
+      const depRef = doc(db, "deposit_requests", depositId);
+      const depSnap = await transaction.get(depRef);
+
+      if (!depSnap.exists()) {
+        throw new Error("Deposit request not found");
+      }
+
+      const depData = depSnap.data();
+
+      if (depData.status !== "pending") {
+        throw new Error(`Deposit is ${depData.status}, not pending`);
+      }
+
+      const amount = depData.amount;
+      const userId = depData.userId;
+
+      // Get user
+      const userRef = doc(db, "users", userId);
+      const userSnap = await transaction.get(userRef);
+
+      if (!userSnap.exists()) {
+        throw new Error("User not found");
+      }
+
+      const currentBalance = Number(userSnap.data().balance || 0);
+      const newBalance = currentBalance + amount;
+
+      // Update deposit status
+      transaction.update(depRef, {
+        status: "approved",
+        updatedAt: serverTimestamp(),
+      });
+
+      // Update user balance
+      transaction.update(userRef, {
+        balance: newBalance,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Create notification for user
+      const notifRef = doc(collection(db, "notifications"));
+      transaction.set(notifRef, {
+        userId,
+        type: "deposit",
+        title: "Nạp tiền thành công",
+        message: `Nạp tiền ${formatCurrency(amount)} đã được phê duyệt`,
+        createdAt: serverTimestamp(),
+        read: false,
+      });
+    });
+
+    return { success: true, message: "Deposit approved" };
+  } catch (error) {
+    console.error("Error approving deposit:", error);
+    throw error;
+  }
+}
+
+async function rejectDepositHandler({ depositId, reason }) {
+  try {
+    await verifyAdminClaim();
+
+    await runTransaction(db, async (transaction) => {
+      const depRef = doc(db, "deposit_requests", depositId);
+      const depSnap = await transaction.get(depRef);
+
+      if (!depSnap.exists()) {
+        throw new Error("Deposit request not found");
+      }
+
+      const depData = depSnap.data();
+
+      if (depData.status !== "pending") {
+        throw new Error(`Deposit is ${depData.status}, not pending`);
+      }
+
+      const userId = depData.userId;
+      const amount = depData.amount;
+
+      // Update deposit status
+      transaction.update(depRef, {
+        status: "rejected",
+        reason,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Create notification for user with reason
+      const notifRef = doc(collection(db, "notifications"));
+      transaction.set(notifRef, {
+        userId,
+        type: "deposit",
+        title: "Nạp tiền bị từ chối",
+        message: `Nạp tiền ${formatCurrency(amount)} bị từ chối. Lý do: ${reason}`,
+        reason,
+        createdAt: serverTimestamp(),
+        read: false,
+      });
+    });
+
+    return { success: true, message: "Deposit rejected" };
+  } catch (error) {
+    console.error("Error rejecting deposit:", error);
+    throw error;
+  }
 }
 
 // ===== TRANSACTIONS TABLE =====
@@ -976,50 +1365,65 @@ function renderOrdersSummary(orders) {
       ${orders
         .slice(0, 5)
         .map(
-          (order, i) => `
+          (order, i) => {
+            const statusColor = 
+              order.status === "pending" ? "#d4af37" :
+              order.status === "shipping" ? "#2196f3" :
+              order.status === "completed" ? "#4caf50" :
+              "#999";
+            
+            const statusLabel =
+              order.status === "pending" ? "⏳ Pending" :
+              order.status === "shipping" ? "🚚 Shipping" :
+              order.status === "completed" ? "✓ Completed" :
+              order.status;
+
+            return `
         <div class="table-row" style="animation-delay: ${i * 50}ms">
           <div class="product-image">📦</div>
           <div class="product-info">
             <div class="product-name">${order.id?.substring(0, 12) || "Unknown"}</div>
           </div>
-          <div class="product-desc">${usersCache.get(order.userId) || order.userEmail || "Loading..."}</div>
+          <div class="product-desc">${order.userEmail || "Loading..."}</div>
           <div class="product-price">${formatCurrency(Number(order.total) || 0)}</div>
           <div>
-            <span class="status-badge ${
-              order.status === "pending"
-                ? "status-pending"
-                : order.status === "completed"
-                  ? "status-success"
-                  : "status-pending"
-            }">
-              ${order.status || "pending"}
+            <span class="status-badge" style="
+              background: ${statusColor}22;
+              color: ${statusColor};
+              border: 1px solid ${statusColor}44;
+            ">
+              ${statusLabel}
             </span>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="action-btn" onclick="showOrderDetails('${order.id}')" title="View">👁️</button>
             ${order.status === "pending" ? `
-              <button class="btn-hold-delete" data-order-id="${order.id}" title="Hold 3s to reject">
-                Reject
+              <button class="btn-ship-order" data-order-id="${order.id}" title="Ship Order" style="color: #2196f3; padding: 6px 10px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                Ship
               </button>
             ` : ''}
           </div>
         </div>
-      `,
+      `;
+          }
         )
         .join("")}
     </div>
   `;
 
-  // Attach hold-to-delete handlers
-  container.querySelectorAll(".btn-hold-delete").forEach(btn => {
-    attachHoldToDeleteOrder(btn, async () => {
+  // Attach ship order handlers
+  container.querySelectorAll(".btn-ship-order").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       const orderId = btn.dataset.orderId;
+      btn.disabled = true;
       try {
-        await updateOrderStatus(orderId, "rejected");
-        showToast("Order rejected successfully", "success");
+        await updateOrderStatus(orderId, "shipping");
+        showToast("Order marked as shipping!", "success");
         renderOrdersSummary(currentOrders);
       } catch (error) {
-        showToast("Error rejecting order: " + error.message, "error");
+        showToast("Error shipping order: " + error.message, "error");
+        btn.disabled = false;
       }
     });
   });
@@ -1195,8 +1599,20 @@ function updateSidebarBadges() {
     }
   }
 
+  // Update Deposits badge
+  const pendingDeposits = currentDeposits.filter(d => d.status === 'pending').length;
+  const depositsBadge = document.getElementById('deposits-badge');
+  if (depositsBadge) {
+    if (pendingDeposits > 0) {
+      depositsBadge.textContent = pendingDeposits;
+      depositsBadge.style.display = 'inline-flex';
+    } else {
+      depositsBadge.style.display = 'none';
+    }
+  }
+
   // Update notification badge
-  updateNotificationBadge(pendingTransactions + pendingOrders);
+  updateNotificationBadge(pendingTransactions + pendingOrders + pendingDeposits);
 }
 
 function updateNotificationDropdown() {
@@ -1215,6 +1631,12 @@ function updateNotificationDropdown() {
       icon: '📦',
       message: `Order ${o.id?.substring(0, 8)} needs review`,
       time: o.createdAt
+    })),
+    ...currentDeposits.filter(d => d.status === 'pending').map(d => ({
+      type: 'deposit',
+      icon: '🏦',
+      message: `Deposit ${formatCurrency(d.amount)} from ${d.userId?.substring(0, 8)}`,
+      time: d.createdAt
     }))
   ];
 
@@ -1412,6 +1834,127 @@ function setupTransactionsListener() {
   );
 }
 
+// ===== DEPOSITS MANAGEMENT (NEW) =====
+function setupDepositsListener() {
+  depositsUnsub = onSnapshot(
+    query(
+      collection(db, "deposit_requests"),
+      where("status", "==", "pending"),
+      orderBy("createdAt", "desc")
+    ),
+    (snapshot) => {
+      currentDeposits = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      renderDepositsTable(currentDeposits);
+      updateSidebarBadges();
+      updateNotificationDropdown();
+    },
+    (error) => {
+      console.error("Deposits listener error:", error);
+      showToast("Failed to load deposits", "error");
+    },
+  );
+}
+
+let currentReviews = [];
+let reviewsUnsub = null;
+
+function setupReviewsListener() {
+  reviewsUnsub = onSnapshot(
+    query(collection(db, "reviews"), orderBy("createdAt", "desc")),
+    async (snapshot) => {
+      currentReviews = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      
+      // Fetch product names for all reviews
+      const reviewsWithProducts = await Promise.all(
+        currentReviews.map(async (review) => {
+          const productDoc = await getDoc(doc(db, "products", review.productId));
+          return {
+            ...review,
+            productName: productDoc.exists() ? productDoc.data().name : "Unknown Product"
+          };
+        })
+      );
+      
+      currentReviews = reviewsWithProducts;
+      renderReviewsTable(currentReviews);
+    },
+    (error) => {
+      console.error("Reviews listener error:", error);
+      showToast("Failed to load reviews", "error");
+    },
+  );
+}
+
+function renderReviewsTable(reviews, filteredReviews = null) {
+  const container = document.getElementById("reviews-list");
+  if (!container) return;
+
+  let displayReviews = filteredReviews || reviews;
+
+  if (displayReviews.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⭐</div>
+        <h3>No reviews yet</h3>
+        <p>Customer reviews will appear here once products are reviewed</p>
+      </div>
+    `;
+    return;
+  }
+
+  function renderStars(rating) {
+    return Array(5)
+      .fill("⭐")
+      .map((star, i) => `<span style="opacity: ${(i + 1) <= rating ? "1" : "0.3"};">${star}</span>`)
+      .join("");
+  }
+
+  container.innerHTML = `
+    <div class="products-table">
+      <div class="table-header">
+        <div>Product</div>
+        <div>Reviewer</div>
+        <div>Rating</div>
+        <div>Comment</div>
+        <div>Date</div>
+      </div>
+      ${displayReviews
+        .map(
+          (review, i) => `
+        <div class="table-row" style="animation-delay: ${i * 50}ms">
+          <div style="padding: 10px; color: var(--color-text-primary);">${review.productName}</div>
+          <div style="padding: 10px; color: var(--color-text-secondary);">${review.userName || "Anonymous"}</div>
+          <div style="padding: 10px; font-size: 16px;">
+            ${renderStars(review.rating)}
+            <span style="margin-left: 8px; color: var(--color-metallic-gold); font-weight: 600;">${review.rating}</span>
+          </div>
+          <div style="padding: 10px; max-width: 300px; color: var(--color-text-secondary); word-break: break-word; font-size: 13px;">
+            ${review.comment}
+          </div>
+          <div style="padding: 10px; color: var(--color-text-secondary); font-size: 12px;">
+            ${formatDate(review.createdAt?.toDate?.() || new Date(review.createdAt))}
+          </div>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
+
+  // Trigger animations
+  setTimeout(() => {
+    container.querySelectorAll(".table-row").forEach((row) => {
+      row.style.opacity = "1";
+    });
+  }, 100);
+}
+
 // ===== SECTION NAVIGATION =====
 function showSection(sectionId) {
   document.querySelectorAll(".section").forEach((s) => {
@@ -1444,6 +1987,9 @@ function initializeAdmin() {
   setupProductsListener();
   setupOrdersListener();
   setupTransactionsListener();
+  setupDepositsListener();
+  setupReviewsListener();
+  setupReviewsUI();
 
   // Setup role management UI
   setupRoleManagement();
@@ -1514,6 +2060,30 @@ function initializeAdmin() {
       updateRevenueChart(btn.dataset.period);
     });
   });
+
+  // Orders tab switching
+  const ordersTabActive = document.getElementById("orders-tab-active");
+  const ordersTabHistory = document.getElementById("orders-tab-history");
+  
+  if (ordersTabActive && ordersTabHistory) {
+    ordersTabActive.addEventListener("click", () => {
+      localStorage.setItem("orders-tab", "active");
+      ordersTabActive.style.background = "#d4af37";
+      ordersTabActive.style.color = "#000";
+      ordersTabHistory.style.background = "#1c1c1e";
+      ordersTabHistory.style.color = "#aaa";
+      renderOrdersTable(currentOrders);
+    });
+
+    ordersTabHistory.addEventListener("click", () => {
+      localStorage.setItem("orders-tab", "history");
+      ordersTabHistory.style.background = "#d4af37";
+      ordersTabHistory.style.color = "#000";
+      ordersTabActive.style.background = "#1c1c1e";
+      ordersTabActive.style.color = "#aaa";
+      renderOrdersTable(currentOrders);
+    });
+  }
 
   // Add / Save Product form handlers
   const addProductBtn = document.getElementById("add-product-btn");
@@ -1773,6 +2343,34 @@ async function renderUsersList() {
   }, 100);
 }
 
+function setupReviewsUI() {
+  const searchInput = document.getElementById("reviews-search");
+  const filterRating = document.getElementById("reviews-filter-rating");
+
+  if (!searchInput || !filterRating) return;
+
+  const applyFilters = () => {
+    const searchQuery = searchInput.value.toLowerCase().trim();
+    const ratingFilter = filterRating.value ? parseInt(filterRating.value) : null;
+
+    const filtered = currentReviews.filter((review) => {
+      const matchesSearch =
+        review.productName.toLowerCase().includes(searchQuery) ||
+        (review.userName && review.userName.toLowerCase().includes(searchQuery)) ||
+        review.comment.toLowerCase().includes(searchQuery);
+
+      const matchesRating = !ratingFilter || review.rating === ratingFilter;
+
+      return matchesSearch && matchesRating;
+    });
+
+    renderReviewsTable(currentReviews, filtered);
+  };
+
+  searchInput.addEventListener("input", applyFilters);
+  filterRating.addEventListener("change", applyFilters);
+}
+
 function setupRoleManagement() {
   const emailInput = document.getElementById("role-email-input");
   const promoteBtn = document.getElementById("promote-btn");
@@ -1897,6 +2495,7 @@ function init() {
     if (ordersUnsub) ordersUnsub();
     if (productsUnsub) productsUnsub();
     if (transactionsUnsub) transactionsUnsub();
+    if (depositsUnsub) depositsUnsub();
   });
 }
 

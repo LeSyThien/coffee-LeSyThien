@@ -3,6 +3,12 @@ import { ACTION_TYPES } from "../store/actions.js";
 import { auth } from "../services/firebase.service.js";
 import { checkoutTransaction } from "../services/transaction.service.js";
 import { db } from "../services/firebase.service.js";
+import {
+  onSnapshot,
+  query,
+  collection,
+  where,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 export function renderCart(state) {
   let cartElement = document.getElementById("cart");
@@ -110,6 +116,11 @@ export function renderCart(state) {
       checkoutBtn.onclick = async (e) => {
         e.stopPropagation();
 
+        // ✅ SECURITY FIX: Prevent duplicate checkout requests
+        if (checkoutBtn.disabled) {
+          return;
+        }
+
         if (!user) {
           // Redirect to login
           window.location.href = "login.html";
@@ -123,7 +134,12 @@ export function renderCart(state) {
         }
 
         // Proceed with checkout
+        checkoutBtn.disabled = true;
+        const originalText = checkoutBtn.textContent;
+        checkoutBtn.textContent = "⏳ Processing...";
         await handleCheckout(items, total);
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = originalText;
       };
     }
   } else if (checkoutSection) {
@@ -169,14 +185,27 @@ async function handleCheckout(items, total) {
       clientRequestId,
     );
 
+    // ✅ SECURITY FIX: Validate orderId exists before using it
+    if (!result || !result.orderId) {
+      throw new Error(
+        "No Order ID returned from checkout. Transaction may have failed.",
+      );
+    }
+
     // Success - clear cart immediately
     store.dispatch({ type: ACTION_TYPES.CLEAR_CART });
 
     // Inform user of pending approval
+    const orderIdShort = result.orderId.substring(0, 8);
     showToast(
-      `⏳ Đã tạo đơn hàng ${result.orderId.substring(0, 8)}, chờ admin duyệt thanh toán...`,
+      `⏳ Đã tạo đơn hàng ${orderIdShort}, chờ admin duyệt thanh toán...`,
       "info",
     );
+
+    // ✅ NEW: Listen for order transaction status changes
+    if (result.txId) {
+      setupOrderTransactionListener(user.uid, result.txId, orderIdShort);
+    }
 
     // Close cart after order creation
     store.dispatch({ type: ACTION_TYPES.TOGGLE_CART });
@@ -191,6 +220,39 @@ async function handleCheckout(items, total) {
     // Clear global loading state
     store.dispatch({ type: ACTION_TYPES.SET_GLOBAL_LOADING, payload: false });
   }
+}
+
+// ✅ NEW: Listen for order transaction status changes
+function setupOrderTransactionListener(userId, txId, orderIdShort) {
+  const txCollection = collection(db, "transactions");
+  const q = query(txCollection, where("userId", "==", userId));
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      snapshot.docs.forEach((doc) => {
+        if (doc.id === txId) {
+          const data = doc.data();
+          if (data.status === "success") {
+            showToast(
+              `✅ Thanh toán được duyệt! Đơn hàng ${orderIdShort} đã được xác nhận.`,
+              "success",
+            );
+            unsubscribe(); // Stop listening after success
+          } else if (data.status === "rejected") {
+            showToast(
+              `❌ Thanh toán bị từ chối. Vui lòng liên hệ admin để biết thêm chi tiết.`,
+              "error",
+            );
+            unsubscribe(); // Stop listening after rejection
+          }
+        }
+      });
+    },
+    (error) => {
+      console.error("Error listening to transaction status:", error);
+    },
+  );
 }
 
 // Simple toast notification (can be improved later)

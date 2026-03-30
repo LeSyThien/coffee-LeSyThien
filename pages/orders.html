@@ -597,7 +597,7 @@
                 <div class="order-thumbnail">
                   <span>☕</span>
                 </div>
-                
+
                 <div class="order-info">
                   <div class="order-name">${firstItemName}</div>
                   <div class="order-meta">${createdDate} • ${createdTime}</div>
@@ -635,6 +635,83 @@
                     <span class="order-total-label">Tổng Cộng</span>
                     <span class="order-total-amount">${order.total.toLocaleString("vi-VN")}đ</span>
                   </div>
+
+                  <!-- Confirm Receipt Button (for shipping status) -->
+                  ${order.status === "shipping" ? `
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--color-border-subtle);">
+                      <button class="confirm-received-btn" data-order-id="${order.id}" data-items='${JSON.stringify(order.items || [])}' style="
+                        width: 100%;
+                        padding: 12px;
+                        background: linear-gradient(135deg, #4caf50, #45a049);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                      ">✓ Xác Nhận Đã Nhận Hàng</button>
+                    </div>
+                  ` : order.status === "completed" ? `
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--color-border-subtle);">
+                      <div style="margin-bottom: 20px;">
+                        <p style="color: var(--color-text-primary); font-weight: 600; margin-bottom: 12px;">📝 Đánh Giá Sản Phẩm</p>
+                        ${(order.items || []).map((item, idx) => `
+                          <div class="product-review-form" data-product-id="${item.id}" data-product-name="${item.name}" data-order-id="${order.id}" style="
+                            background: var(--color-surface-l2);
+                            padding: 12px;
+                            border-radius: 8px;
+                            margin-bottom: 12px;
+                            border: 1px solid var(--color-border-subtle);
+                          ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                              <span style="font-weight: 600; color: var(--color-text-primary);">${item.name}</span>
+                              <span style="font-size: 12px; color: var(--color-text-secondary);">x${item.quantity}</span>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                              ${[1, 2, 3, 4, 5].map(star => `
+                                <button class="star-btn-product" data-rating="${star}" style="
+                                  background: none;
+                                  border: none;
+                                  font-size: 24px;
+                                  cursor: pointer;
+                                  opacity: 0.5;
+                                  transition: opacity 0.2s;
+                                ">⭐</button>
+                              `).join('')}
+                            </div>
+
+                            <textarea class="product-comment" placeholder="Chia sẻ trải nghiệm của bạn..." style="
+                              width: 100%;
+                              height: 60px;
+                              padding: 8px;
+                              background: var(--color-surface);
+                              color: var(--color-text-primary);
+                              border: 1px solid var(--color-border-subtle);
+                              border-radius: 6px;
+                              font-family: inherit;
+                              resize: vertical;
+                              font-size: 12px;
+                              margin-bottom: 8px;
+                            "></textarea>
+
+                            <button class="submit-product-review-btn" style="
+                              width: 100%;
+                              padding: 8px;
+                              background: var(--color-metallic-gold);
+                              color: #000;
+                              border: none;
+                              border-radius: 6px;
+                              font-weight: 600;
+                              font-size: 12px;
+                              cursor: pointer;
+                              transition: all 0.3s ease;
+                            ">Gửi Đánh Giá</button>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : ""}
                 </div>
               </div>
             </div>
@@ -645,7 +722,10 @@
 
         // Attach event listeners to cards
         document.querySelectorAll(".order-card").forEach((card) => {
-          card.addEventListener("click", () => {
+          card.addEventListener("click", (e) => {
+            // Don't expand if clicking on buttons
+            if (e.target.closest("button")) return;
+
             const cardId = card.dataset.orderId;
 
             // Close previously expanded card
@@ -665,19 +745,259 @@
               : null;
           });
         });
+
+        // Attach confirm received button handlers
+        document.querySelectorAll(".confirm-received-btn").forEach((btn) => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const orderId = btn.dataset.orderId;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = "⏳ Processing...";
+
+            try {
+              // Import firebase modules
+              const { updateDoc, doc, serverTimestamp, Timestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+              const { db, auth } = await import("../js/services/firebase.service.js");
+
+              // Update order status to completed
+              const orderRef = doc(db, "orders", orderId);
+              await updateDoc(orderRef, {
+                status: "completed",
+                completedAt: serverTimestamp()
+              });
+
+              // Create notification for admin
+              const { addDoc, collection } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+              await addDoc(collection(db, "notifications"), {
+                type: "order",
+                recipient: "admin",
+                title: "Đơn hàng được xác nhận",
+                message: `Khách hàng đã xác nhận nhận hàng cho đơn ${orderId.substring(0, 8)}`,
+                orderId,
+                userId: auth.currentUser.uid,
+                createdAt: serverTimestamp(),
+                read: false
+              });
+
+              showToast("✓ Cảm ơn bạn đã xác nhận! Vui lòng đánh giá sản phẩm", "success");
+              renderOrders(state);
+            } catch (error) {
+              showToast("❌ Lỗi: " + error.message, "error");
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }
+          });
+        });
+
+        // Attach star rating handlers
+        document.querySelectorAll(".star-rating").forEach((ratingDiv) => {
+          const stars = ratingDiv.querySelectorAll(".star-btn");
+          let selectedRating = 0;
+
+          stars.forEach((star) => {
+            star.addEventListener("click", (e) => {
+              e.stopPropagation();
+              selectedRating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              });
+            });
+
+            star.addEventListener("mouseenter", (e) => {
+              const rating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+              });
+            });
+          });
+
+          ratingDiv.addEventListener("mouseleave", () => {
+            stars.forEach((s, idx) => {
+              s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+            });
+          });
+
+          // Store rating on the rating div
+          ratingDiv.dataset.selectedRating = selectedRating;
+        });
+
+        // Attach product review form handlers
+        document.querySelectorAll(".product-review-form").forEach((form) => {
+          const stars = form.querySelectorAll(".star-btn-product");
+          let selectedRating = 0;
+
+          // Star rating click handlers
+          stars.forEach((star) => {
+            star.addEventListener("click", (e) => {
+              e.stopPropagation();
+              selectedRating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              });
+            });
+
+            star.addEventListener("mouseenter", (e) => {
+              const rating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+              });
+            });
+
+            star.addEventListener("mouseleave", () => {
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              });
+            });
+          });
+
+          // Submit review handler
+          const submitBtn = form.querySelector(".submit-product-review-btn");
+          const commentInput = form.querySelector(".product-comment");
+
+          submitBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+
+            if (selectedRating === 0) {
+              showToast("❌ Vui lòng chọn số sao", "error");
+              return;
+            }
+
+            const comment = commentInput.value.trim();
+            if (!comment) {
+              showToast("❌ Vui lòng nhập bình luận", "error");
+              return;
+            }
+
+            const productId = form.dataset.productId;
+            const productName = form.dataset.productName;
+            const orderId = form.dataset.orderId;
+
+            submitBtn.disabled = true;
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = "⏳ Gửi...";
+
+            try {
+              const { saveReview } = await import("../js/services/firebase.service.js");
+
+              await saveReview(productId, selectedRating, comment, orderId);
+
+              showToast("✓ Cảm ơn đánh giá của bạn!", "success");
+
+              // Hide the form after successful submission
+              form.style.display = "none";
+
+              // Show confirmation message
+              const confirmMsg = document.createElement("div");
+              confirmMsg.textContent = `✓ Bạn đã đánh giá "${productName}"`;
+              confirmMsg.style.cssText = "color: var(--color-success); font-weight: 600; padding: 10px; text-align: center; background: var(--color-surface-l1); border-radius: 6px; margin-bottom: 12px;";
+              form.parentElement.insertBefore(confirmMsg, form);
+            } catch (error) {
+              showToast("❌ Lỗi: " + error.message, "error");
+              submitBtn.disabled = false;
+              submitBtn.textContent = originalText;
+            }
+          });
+        });
+
+        // Attach star rating handlers (original handlers)
+        document.querySelectorAll(".star-rating").forEach((ratingDiv) => {
+          const stars = ratingDiv.querySelectorAll(".star-btn");
+          let selectedRating = 0;
+
+          stars.forEach((star) => {
+            star.addEventListener("click", (e) => {
+              e.stopPropagation();
+              selectedRating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              });
+            });
+
+            star.addEventListener("mouseenter", (e) => {
+              const rating = parseInt(star.dataset.rating);
+              stars.forEach((s, idx) => {
+                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+              });
+            });
+          });
+
+          ratingDiv.addEventListener("mouseleave", () => {
+            stars.forEach((s, idx) => {
+              s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+            });
+          });
+
+          // Store rating on the rating div
+          ratingDiv.dataset.selectedRating = selectedRating;
+        });
+
+        // Attach review submission handlers
+        document.querySelectorAll(".submit-review-btn").forEach((btn) => {
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const reviewSection = btn.closest(".review-section");
+            // Old handler - disabled since we now use product-level reviews
+            showToast("ℹ️ Vui lòng sử dụng form đánh giá mới", "info");
+          });
+        });
+      }
+function showToast(message, type = "info") {
+        // Fix lỗi dấu gạch chéo ngược (\) khiến trình duyệt báo đỏ
+        const toast = document.createElement("div");
+        toast.textContent = message;
+        
+        // Màu sắc dựa trên type
+        const bgColor = type === "success" ? "#4caf50" : type === "error" ? "#ff4d4f" : "#2196f3";
+
+        toast.style.cssText = `
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          background: ${bgColor};
+          color: white;
+          padding: 12px 20px;
+          border-radius: 6px;
+          z-index: 1000;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          animation: slideIn 0.3s ease forwards;
+        `;
+
+        // Chỉ append style một lần duy nhất
+        if (!document.querySelector("style[data-toast]")) {
+          const style = document.createElement("style");
+          style.setAttribute("data-toast", "true");
+          style.textContent = `
+            @keyframes slideIn {
+              from { transform: translateX(400px); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        document.body.appendChild(toast);
+        
+        // Tự động xóa sau 3s
+        setTimeout(() => {
+          toast.style.animation = "slideIn 0.3s ease reverse forwards";
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
       }
 
-      // Initial render
+      // --- LOGIC KHỞI CHẠY ---
+      
+      // Render lần đầu
       const initialState = store.getState();
       renderOrders(initialState);
 
-      // Subscribe to store changes
+      // Theo dõi thay đổi từ store (Redux-like)
       store.subscribe(() => {
         const state = store.getState();
         renderOrders(state);
       });
 
-      // Check authentication
+      // Kiểm tra đăng nhập (Bảo mật cơ bản)
       auth.onAuthStateChanged((user) => {
         if (!user) {
           window.location.href = "login.html";

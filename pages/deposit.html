@@ -708,6 +708,12 @@
       // Local imports for this page
       import { auth, db } from "../js/services/firebase.service.js";
       import { depositTransaction } from "../js/services/transaction.service.js";
+      import {
+        onSnapshot,
+        query,
+        collection,
+        where,
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
       import { renderNavbar } from "../js/components/navbar.js";
       import { renderCart } from "../js/components/cart.js";
       import store from "../js/store/index.js";
@@ -877,6 +883,43 @@
         }, 3000);
       }
 
+      // ✅ NEW: Listen for deposit request status changes
+      function setupDepositListener(userId, depositId, amount) {
+        const docRef = collection(db, "deposit_requests");
+        const q = query(docRef, where("userId", "==", userId));
+
+        const unsubscribe = onSnapshot(
+          q,
+          (snapshot) => {
+            snapshot.docs.forEach((doc) => {
+              if (doc.id === depositId) {
+                const data = doc.data();
+                if (data.status === "approved") {
+                  showToast(
+                    `✅ Nạp tiền thành công! +${amount.toLocaleString("vi-VN")}đ vào tài khoản.`,
+                    "success",
+                  );
+                  // Update balance display if needed
+                  const newBalance = oldBalance + amount;
+                  updateBalanceDisplay(newBalance);
+                  oldBalance = newBalance;
+                  unsubscribe(); // Stop listening after success
+                } else if (data.status === "rejected") {
+                  showToast(
+                    `❌ Nạp tiền thất bại: Admin đã từ chối yêu cầu của bạn.`,
+                    "error",
+                  );
+                  unsubscribe(); // Stop listening after rejection
+                }
+              }
+            });
+          },
+          (error) => {
+            console.error("Error listening to deposit requests:", error);
+          },
+        );
+      }
+
       // ===== SUBMIT HANDLER =====
       submitBtn.addEventListener("click", async () => {
         const amount = parseInt(amountInput.value);
@@ -906,20 +949,38 @@
         errorMsg.textContent = "";
 
         try {
-          const result = await depositTransaction(db, currentUser.uid, amount);
+          const currentUser = auth.currentUser;
+          const result = await depositTransaction(
+            db,
+            currentUser.uid,
+            amount,
+            selectedPaymentMethod,
+          );
 
-          // Show pending status
-          showToast("⏳ Yêu cầu nạp tiền đã được gửi, chờ admin duyệt...", "info");
+          if (result.success) {
+            // Show pending status
+            showToast(
+              "⏳ Yêu cầu nạp tiền đã được gửi, chờ admin duyệt...",
+              "info",
+            );
 
-          amountInput.value = "";
-          paymentMethods.forEach((m) => m.classList.remove("selected"));
-          selectedPaymentMethod = null;
-          validateForm();
+            amountInput.value = "";
+            paymentMethods.forEach((m) => m.classList.remove("selected"));
+            selectedPaymentMethod = null;
+            validateForm();
+
+            // ✅ NEW: Listen for deposit request status changes
+            if (result.depositId) {
+              setupDepositListener(currentUser.uid, result.depositId, amount);
+            }
+          } else {
+            throw new Error(result.error || "Deposit request failed");
+          }
         } catch (error) {
           console.error("Deposit error:", error);
           errorMsg.textContent =
             "Lỗi: " + (error.message || "Không thể xử lý nạp tiền");
-          showToast("❌ Nạp tiền thất bại.", "error");
+          showToast("❌ Nạp tiền thất bại: " + error.message, "error");
         } finally {
           isSubmitting = false;
           submitBtn.classList.remove("loading");

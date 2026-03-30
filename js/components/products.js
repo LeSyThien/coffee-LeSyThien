@@ -65,6 +65,20 @@ export function renderProducts(state) {
       ${discount > 0 ? `<div class="discount-badge">${discount}% OFF</div>` : ""}
       <div class="product-content">
         <h3 class="product-name">${product.name}</h3>
+        ${
+          product.avgRating
+            ? `
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px;">
+            <span style="color: var(--color-metallic-gold);">⭐ ${product.avgRating.toFixed(1)}</span>
+            <span style="color: var(--color-text-secondary);">(${product.reviewCount || 0})</span>
+          </div>
+        `
+            : `
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px; color: var(--color-text-secondary);">
+            No reviews yet
+          </div>
+        `
+        }
         <p class="product-description">${product.description || "No description"}</p>
         <div class="product-pricing">
           ${discount > 0 ? `<span class="product-price-original">${formatCurrency(product.price)}</span>` : ""}

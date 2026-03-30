@@ -20,15 +20,22 @@ function getBonusRate(amount) {
   return 0; // No bonus for amounts < 1M
 }
 
-// 1. Deposit transaction (client-simulated, secure intent via transactions collection)
-export async function depositTransaction(db, userId, amount) {
+// 1. Deposit transaction (client-simulated, secure intent via deposit_requests collection)
+export async function depositTransaction(
+  db,
+  userId,
+  amount,
+  paymentMethod = "bank",
+) {
   if (!userId) return { success: false, error: "User ID is required" };
+
+  // ✅ SECURITY FIX: Ensure amount is a number, not a string
+  amount = Number(amount);
+
   if (!amount || amount <= 0)
     return { success: false, error: "Amount must be greater than 0" };
   if (amount < 1000)
-    return { success: false, error: "Minimum deposit amount is 1000đ" };
-
-  const AUTO_APPROVE_LIMIT = 100000; // 100k VND
+    return { success: false, error: "Minimum deposit amount is 1,000đ" };
 
   try {
     const userRef = doc(db, "users", userId);
@@ -36,57 +43,21 @@ export async function depositTransaction(db, userId, amount) {
     if (!userDoc.exists())
       return { success: false, error: "User does not exist" };
 
-    if (amount < AUTO_APPROVE_LIMIT) {
-      // Auto-approve small deposits
-      await runTransaction(db, async (transaction) => {
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) {
-          throw new Error("User not found");
-        }
+    // Create deposit request in deposit_requests collection
+    const depositRequestRef = await addDoc(collection(db, "deposit_requests"), {
+      userId,
+      amount, // Ensure this is a number
+      status: "pending",
+      paymentMethod,
+      createdAt: serverTimestamp(),
+    });
 
-        const userData = userSnap.data();
-        const currentBalance = Number(userData.balance || 0);
-
-        // Create transaction
-        const txRef = doc(collection(db, "transactions"));
-        transaction.set(txRef, {
-          userId,
-          type: "deposit",
-          amount,
-          status: "success",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        // Update user balance
-        transaction.update(userRef, {
-          balance: currentBalance + amount,
-        });
-
-        // Create notification
-        const notificationsRef = collection(db, "notifications");
-        transaction.set(doc(notificationsRef), {
-          userId,
-          type: "transaction",
-          message: `Deposit of ${amount.toLocaleString("vi-VN")}đ has been approved automatically`,
-          createdAt: serverTimestamp(),
-          read: false,
-        });
-      });
-
-      return { success: true, autoApproved: true };
-    } else {
-      // Large deposits require admin approval
-      const txRef = await addDoc(collection(db, "transactions"), {
-        userId,
-        type: "deposit",
-        amount,
-        status: "pending",
-        createdAt: serverTimestamp(),
-      });
-
-      return { success: true, pending: true, txId: txRef.id };
-    }
+    return {
+      success: true,
+      pending: true,
+      depositId: depositRequestRef.id,
+      message: `Deposit request created. Waiting for admin approval.`,
+    };
   } catch (error) {
     console.warn("Deposit transaction failed:", error);
     return { success: false, error: error.message || "Deposit failed" };
@@ -128,8 +99,11 @@ export async function checkoutTransaction(
       };
     }
 
+    const userEmail = userSnap.data().email || "Unknown";
+
     const orderRef = await addDoc(collection(db, "orders"), {
       userId,
+      userEmail,
       items: orderData.items,
       total: totalAmount,
       status: "pending",
