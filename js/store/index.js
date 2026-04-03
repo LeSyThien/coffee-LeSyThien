@@ -83,7 +83,8 @@ function createStore(reducer, preloadedState) {
     if (
       action.type === "CART/ADD_TO_CART" ||
       action.type === "CART/UPDATE_CART" ||
-      action.type === "CART/CLEAR_CART"
+      action.type === "CART/CLEAR_CART" ||
+      action.type === "CART/SET_CART"
     ) {
       try {
         localStorage.setItem("cart", JSON.stringify(state.cart));

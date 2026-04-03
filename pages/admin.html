@@ -234,7 +234,7 @@
         transform: scale(1.05);
       }
       .btn-hold-delete::before {
-        content: '';
+        content: "";
         position: absolute;
         left: 0;
         top: 0;
@@ -579,6 +579,7 @@
     </style>
   </head>
   <body>
+    <!-- NOTE: Admin dashboard is sidebar-only. Navbar is hidden. -->
     <div class="admin-wrapper">
       <aside class="admin-sidebar">
         <div class="sidebar-brand">ADMIN SETTINGS</div>
@@ -591,15 +592,27 @@
           </button>
           <button class="sidebar-btn nav-btn" data-section="orders">
             Orders
-            <span class="sidebar-badge" id="orders-badge" style="display: none;">0</span>
+            <span class="sidebar-badge" id="orders-badge" style="display: none"
+              >0</span
+            >
           </button>
           <button class="sidebar-btn nav-btn" data-section="transactions">
             Transactions
-            <span class="sidebar-badge" id="transactions-badge" style="display: none;">0</span>
+            <span
+              class="sidebar-badge"
+              id="transactions-badge"
+              style="display: none"
+              >0</span
+            >
           </button>
           <button class="sidebar-btn nav-btn" data-section="deposits">
             🏦 Deposits
-            <span class="sidebar-badge" id="deposits-badge" style="display: none;">0</span>
+            <span
+              class="sidebar-badge"
+              id="deposits-badge"
+              style="display: none"
+              >0</span
+            >
           </button>
           <button class="sidebar-btn nav-btn" data-section="reviews">
             ⭐ Reviews
@@ -620,16 +633,54 @@
             />
           </div>
           <div class="topbar-right">
-            <button id="back-to-shop" class="icon-btn" title="Back to shop">🏠</button>
-            <button id="notification-bell" class="icon-btn" title="Notifications">🔔
-              <span id="notification-badge" style="display: none; position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center; border: 2px solid #121214;"></span>
+            <button id="back-to-shop" class="icon-btn" title="Back to shop">
+              🏠
+            </button>
+            <button
+              id="notification-bell"
+              class="icon-btn"
+              title="Notifications"
+            >
+              🔔
+              <span
+                id="notification-badge"
+                style="
+                  display: none;
+                  position: absolute;
+                  top: -8px;
+                  right: -8px;
+                  background: #ff4444;
+                  color: white;
+                  border-radius: 50%;
+                  padding: 2px 6px;
+                  font-size: 10px;
+                  font-weight: bold;
+                  min-width: 16px;
+                  text-align: center;
+                  border: 2px solid #121214;
+                "
+              ></span>
             </button>
             <div id="notification-dropdown">
-              <div style="padding: 12px 16px; border-bottom: 1px solid #1c1c1e; font-weight: 600; color: #d4af37;">
+              <div
+                style="
+                  padding: 12px 16px;
+                  border-bottom: 1px solid #1c1c1e;
+                  font-weight: 600;
+                  color: #d4af37;
+                "
+              >
                 Notifications
               </div>
               <div id="notification-list">
-                <div style="padding: 20px; text-align: center; color: #808080; font-size: 14px;">
+                <div
+                  style="
+                    padding: 20px;
+                    text-align: center;
+                    color: #808080;
+                    font-size: 14px;
+                  "
+                >
                   No notifications yet
                 </div>
               </div>
@@ -684,27 +735,47 @@
           </section>
 
           <section id="orders-section" class="section">
-            <div class="panel-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div
+              class="panel-header"
+              style="
+                margin-bottom: 12px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
               <h2 class="panel-title">Orders</h2>
-              <div style="display: flex; gap: 12px;">
-                <button id="orders-tab-active" class="btn-tab-active" style="
-                  padding: 8px 16px;
-                  background: #d4af37;
-                  color: #000;
-                  border: none;
-                  border-radius: 6px;
-                  cursor: pointer;
-                  font-weight: 600;
-                ">Active</button>
-                <button id="orders-tab-history" class="btn-tab-inactive" style="
-                  padding: 8px 16px;
-                  background: #1c1c1e;
-                  color: #aaa;
-                  border: 1px solid #1c1c1e;
-                  border-radius: 6px;
-                  cursor: pointer;
-                  font-weight: 600;
-                ">History</button>
+              <div style="display: flex; gap: 12px">
+                <button
+                  id="orders-tab-active"
+                  class="btn-tab-active"
+                  style="
+                    padding: 8px 16px;
+                    background: #d4af37;
+                    color: #000;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                  "
+                >
+                  Active
+                </button>
+                <button
+                  id="orders-tab-history"
+                  class="btn-tab-inactive"
+                  style="
+                    padding: 8px 16px;
+                    background: #1c1c1e;
+                    color: #aaa;
+                    border: 1px solid #1c1c1e;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                  "
+                >
+                  History
+                </button>
               </div>
             </div>
             <div class="panel">
@@ -749,14 +820,41 @@
               <div class="panel-header">
                 <h2 class="panel-title">⭐ Customer Reviews & Feedback</h2>
               </div>
-              <div style="padding: 20px; border-bottom: 1px solid #1c1c1e; display: flex; gap: 12px; flex-wrap: wrap;">
-                <input 
-                  type="text" 
-                  id="reviews-search" 
+              <div
+                style="
+                  padding: 20px;
+                  border-bottom: 1px solid #1c1c1e;
+                  display: flex;
+                  gap: 12px;
+                  flex-wrap: wrap;
+                "
+              >
+                <input
+                  type="text"
+                  id="reviews-search"
                   placeholder="Search by product name or reviewer..."
-                  style="flex: 1; padding: 10px 14px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 8px; color: #fff; font-size: 14px; min-width: 200px;"
+                  style="
+                    flex: 1;
+                    padding: 10px 14px;
+                    background: #0a0a0b;
+                    border: 1px solid #1c1c1e;
+                    border-radius: 8px;
+                    color: #fff;
+                    font-size: 14px;
+                    min-width: 200px;
+                  "
                 />
-                <select id="reviews-filter-rating" style="padding: 10px 14px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 8px; color: #fff; font-size: 14px;">
+                <select
+                  id="reviews-filter-rating"
+                  style="
+                    padding: 10px 14px;
+                    background: #0a0a0b;
+                    border: 1px solid #1c1c1e;
+                    border-radius: 8px;
+                    color: #fff;
+                    font-size: 14px;
+                  "
+                >
                   <option value="">All Ratings</option>
                   <option value="5">⭐ 5 Stars</option>
                   <option value="4">⭐ 4 Stars</option>
@@ -765,7 +863,7 @@
                   <option value="1">⭐ 1 Star</option>
                 </select>
               </div>
-              <div id="reviews-list" style="padding: 16px;">
+              <div id="reviews-list" style="padding: 16px">
                 <div class="loading">Loading reviews...</div>
               </div>
             </div>
@@ -776,23 +874,42 @@
               <div class="panel-header">
                 <h2 class="panel-title">User Roles Management</h2>
               </div>
-              <div style="padding: 20px; border-bottom: 1px solid #1c1c1e;">
-                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+              <div style="padding: 20px; border-bottom: 1px solid #1c1c1e">
+                <div style="display: flex; gap: 12px; margin-bottom: 20px">
                   <input
                     type="email"
                     id="role-email-input"
                     placeholder="Enter user email..."
-                    style="flex: 1; padding: 10px 14px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 8px; color: #fff; font-size: 14px;"
+                    style="
+                      flex: 1;
+                      padding: 10px 14px;
+                      background: #0a0a0b;
+                      border: 1px solid #1c1c1e;
+                      border-radius: 8px;
+                      color: #fff;
+                      font-size: 14px;
+                    "
                   />
-                  <button id="promote-btn" class="btn-primary" style="min-width: 140px;">
+                  <button
+                    id="promote-btn"
+                    class="btn-primary"
+                    style="min-width: 140px"
+                  >
                     🚀 Make Admin
                   </button>
-                  <button id="demote-btn" class="btn-primary" style="min-width: 140px; background: linear-gradient(135deg, #ff9800, #f57c00);">
+                  <button
+                    id="demote-btn"
+                    class="btn-primary"
+                    style="
+                      min-width: 140px;
+                      background: linear-gradient(135deg, #ff9800, #f57c00);
+                    "
+                  >
                     ⬇️ Remove Admin
                   </button>
                 </div>
               </div>
-              <div id="users-list" style="padding: 16px;">
+              <div id="users-list" style="padding: 16px">
                 <div class="loading">Loading users...</div>
               </div>
             </div>
@@ -830,15 +947,34 @@
         </div>
         <div class="form-group">
           <label>Category</label>
-          <select id="form-category" style="color: #fff; background: #1a1a1c; border: 1px solid #333;">
-            <option value="" style="color: #fff; background: #1a1a1c;">Select Category</option>
-            <option value="Espresso" style="color: #fff; background: #1a1a1c;">Espresso</option>
-            <option value="Latte" style="color: #fff; background: #1a1a1c;">Latte</option>
-            <option value="Cappuccino" style="color: #fff; background: #1a1a1c;">Cappuccino</option>
-            <option value="Matcha" style="color: #fff; background: #1a1a1c;">Matcha</option>
-            <option value="Cold Brew" style="color: #fff; background: #1a1a1c;">Cold Brew</option>
-            <option value="Coffee" style="color: #fff; background: #1a1a1c;">Coffee</option>
-            <option value="Signature" style="color: #fff; background: #1a1a1c;">Signature</option>
+          <select
+            id="form-category"
+            style="color: #fff; background: #1a1a1c; border: 1px solid #333"
+          >
+            <option value="" style="color: #fff; background: #1a1a1c">
+              Select Category
+            </option>
+            <option value="Espresso" style="color: #fff; background: #1a1a1c">
+              Espresso
+            </option>
+            <option value="Latte" style="color: #fff; background: #1a1a1c">
+              Latte
+            </option>
+            <option value="Cappuccino" style="color: #fff; background: #1a1a1c">
+              Cappuccino
+            </option>
+            <option value="Matcha" style="color: #fff; background: #1a1a1c">
+              Matcha
+            </option>
+            <option value="Cold Brew" style="color: #fff; background: #1a1a1c">
+              Cold Brew
+            </option>
+            <option value="Coffee" style="color: #fff; background: #1a1a1c">
+              Coffee
+            </option>
+            <option value="Signature" style="color: #fff; background: #1a1a1c">
+              Signature
+            </option>
           </select>
         </div>
         <div class="form-group">
@@ -863,9 +999,37 @@
           </select>
         </div>
         <div class="form-group">
-          <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <input id="form-show-on-home" type="checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+            "
+          >
+            <input
+              id="form-show-on-home"
+              type="checkbox"
+              style="width: 16px; height: 16px; cursor: pointer"
+            />
             <span>Show on Homepage</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+            "
+          >
+            <input
+              id="form-vip-store"
+              type="checkbox"
+              style="width: 16px; height: 16px; cursor: pointer"
+            />
+            <span>Show in VIP Store 👑</span>
           </label>
         </div>
         <div class="form-actions">

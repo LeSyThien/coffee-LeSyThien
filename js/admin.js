@@ -12,7 +12,10 @@ import {
   where,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  onAuthStateChanged,
+  getIdTokenResult,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import store from "../js/store/index.js";
 import { renderNavbar } from "../js/components/navbar.js";
 import { renderCart } from "../js/components/cart.js";
@@ -21,6 +24,7 @@ import {
   auth,
   db,
   updateOrderStatus,
+  cancelOrderWithStockRestore,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -62,14 +66,21 @@ const USE_CLOUD_FUNCTIONS = false;
 
 /**
  * ⚠️ HELPER: Verify current user has admin claim
- * Used for local mode admin check
+ * Used for local mode admin check with email fallback
  */
 async function verifyAdminClaim() {
   const user = auth.currentUser;
   if (!user) throw new Error("User not authenticated");
-  
+
   const tokenResult = await getIdTokenResult(user);
-  if (tokenResult.claims.admin !== true) {
+  let isAdmin = tokenResult.claims.admin === true;
+
+  // Fallback: If no admin claim, check if email matches admin email
+  if (!isAdmin && user.email === "sythien09@gmail.com") {
+    isAdmin = true;
+  }
+
+  if (!isAdmin) {
     throw new Error("User does not have admin privileges");
   }
   return true;
@@ -83,22 +94,26 @@ async function verifyAdminClaim() {
 async function expireOldTransactions() {
   try {
     // ✅ FIXED: Use Firestore Timestamp instead of JavaScript Date
-    const twentyFourHoursAgo = Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const twentyFourHoursAgo = Timestamp.fromDate(
+      new Date(Date.now() - 24 * 60 * 60 * 1000),
+    );
 
     const q = query(
       collection(db, "transactions"),
       where("status", "==", "pending"),
-      where("createdAt", "<", twentyFourHoursAgo)
+      where("createdAt", "<", twentyFourHoursAgo),
     );
 
     const snapshot = await getDocs(q);
     const batch = [];
 
     snapshot.forEach((doc) => {
-      batch.push(updateDoc(doc.ref, {
-        status: "expired",
-        updatedAt: serverTimestamp(),
-      }));
+      batch.push(
+        updateDoc(doc.ref, {
+          status: "expired",
+          updatedAt: serverTimestamp(),
+        }),
+      );
     });
 
     await Promise.all(batch);
@@ -385,7 +400,7 @@ function renderProductsTable(products) {
       </div>
       <div class="row-actions">
         <button class="action-btn edit-btn" data-id="${p.id}" title="Edit" data-tooltip="Edit product">✏️</button>
-        <button class="action-btn toggle-show-home-btn" data-id="${p.id}" title="Toggle Show on Home" style="color: ${p.showOnHome ? '#c89b3c' : '#666'}; transition: color 0.3s ease;">🏠</button>
+        <button class="action-btn toggle-show-home-btn" data-id="${p.id}" title="Toggle Show on Home" style="color: ${p.showOnHome ? "#c89b3c" : "#666"}; transition: color 0.3s ease;">🏠</button>
         <button class="action-btn toggle-availability-btn" data-id="${p.id}" title="Toggle availability" data-tooltip="Toggle availability">
           ${p.available ? "🔒" : "🔓"}
         </button>
@@ -428,7 +443,7 @@ function renderProductsTable(products) {
       btn.style.opacity = "0.5";
       try {
         await toggleShowOnHome(productId, !product.showOnHome);
-        btn.style.color = (!product.showOnHome) ? '#c89b3c' : '#666';
+        btn.style.color = !product.showOnHome ? "#c89b3c" : "#666";
         showToast(
           `Product "${product.name}" is now ${!product.showOnHome ? "shown" : "hidden"} on home page`,
           "success",
@@ -482,25 +497,25 @@ function renderOrdersTable(orders) {
 
   // Filter: hide completed orders older than 24 hours (archive logic)
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
+
   const visibleOrders = showArchived
-    ? orders.filter(order => {
+    ? orders.filter((order) => {
         if (order.status !== "completed") return false;
-        const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
+        const orderDate =
+          order.createdAt?.toDate?.() || new Date(order.createdAt);
         return orderDate <= twentyFourHoursAgo;
       })
-    : orders.filter(order => {
+    : orders.filter((order) => {
         if (order.status === "completed") {
-          const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
+          const orderDate =
+            order.createdAt?.toDate?.() || new Date(order.createdAt);
           return orderDate > twentyFourHoursAgo;
         }
         return true;
       });
 
   if (visibleOrders.length === 0) {
-    const message = showArchived 
-      ? "No archived orders" 
-      : "No active orders";
+    const message = showArchived ? "No archived orders" : "No active orders";
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📦</div>
@@ -523,21 +538,26 @@ function renderOrdersTable(orders) {
       </div>
       ${visibleOrders
         .slice(0, 10)
-        .map(
-          (order, i) => {
-            const statusColor = 
-              order.status === "pending" ? "#d4af37" :
-              order.status === "shipping" ? "#2196f3" :
-              order.status === "completed" ? "#4caf50" :
-              "#999";
-            
-            const statusLabel =
-              order.status === "pending" ? "⏳ Pending" :
-              order.status === "shipping" ? "🚚 Shipping" :
-              order.status === "completed" ? "✓ Completed" :
-              order.status;
+        .map((order, i) => {
+          const statusColor =
+            order.status === "pending"
+              ? "#d4af37"
+              : order.status === "shipping"
+                ? "#2196f3"
+                : order.status === "completed"
+                  ? "#4caf50"
+                  : "#999";
 
-            return `
+          const statusLabel =
+            order.status === "pending"
+              ? "⏳ Pending"
+              : order.status === "shipping"
+                ? "🚚 Shipping"
+                : order.status === "completed"
+                  ? "✓ Completed"
+                  : order.status;
+
+          return `
         <div class="table-row" style="animation-delay: ${i * 50}ms">
           <div class="product-image">📦</div>
           <div class="product-info">
@@ -562,16 +582,15 @@ function renderOrdersTable(orders) {
               <button class="action-btn cancel-order-btn" data-id="${order.id}" title="Cancel" style="color: #ff4d4f">✗</button>
             `
                 : showArchived
-                ? `<span style="font-size: 12px; color: #4caf50;">✓ Archived</span>`
-                : !showArchived && order.status === "shipping"
-                ? `<span style="font-size: 12px; color: #2196f3;">Awaiting confirmation...</span>`
-                : `<span style="font-size: 12px; color: var(--text-muted)">—</span>`
+                  ? `<span style="font-size: 12px; color: #4caf50;">✓ Archived</span>`
+                  : !showArchived && order.status === "shipping"
+                    ? `<span style="font-size: 12px; color: #2196f3;">Awaiting confirmation...</span>`
+                    : `<span style="font-size: 12px; color: var(--text-muted)">—</span>`
             }
           </div>
         </div>
       `;
-          }
-        )
+        })
         .join("")}
     </div>
   `;
@@ -600,10 +619,10 @@ function renderOrdersTable(orders) {
         if (btn.disabled) return;
         btn.disabled = true;
         try {
-          await updateOrderStatus(orderId, "cancelled");
-          showToast("Order cancelled", "warning");
+          await cancelOrderWithStockRestore(orderId);
+          showToast("✅ Đơn hàng đã hủy và hàng đã được hoàn kho", "success");
         } catch (error) {
-          showToast("Failed to update order: " + error.message, "error");
+          showToast("Failed to cancel order: " + error.message, "error");
         } finally {
           btn.disabled = false;
         }
@@ -1097,11 +1116,11 @@ function attachTransactionListeners(container) {
 }
 /**
  * 🔄 HANDLER: Approve Transaction (Dual-Mode)
- * 
+ *
  * Routes to either:
  * - Cloud Function (production with Blaze plan)
  * - Local fallback (development without Blaze plan)
- * 
+ *
  * @param {Object} data - { txId, type }
  * @returns {Object} Success response
  */
@@ -1124,11 +1143,11 @@ async function approveTransactionHandler({ txId, type }) {
 
 /**
  * 🔄 HANDLER: Reject Transaction (Dual-Mode)
- * 
+ *
  * Routes to either:
  * - Cloud Function (production)
  * - Local fallback (development)
- * 
+ *
  * @param {Object} data - { txId }
  * @returns {Object} Success response
  */
@@ -1150,13 +1169,13 @@ async function rejectTransactionHandler({ txId }) {
 
 /**
  * 🔧 LOCAL FALLBACK: Approve Transaction
- * 
+ *
  * ⚠️ REQUIREMENTS:
  * - User must be admin (verified via custom claims)
  * - Amount is READ from database, NOT trusted from client
  * - Uses runTransaction for atomicity
  * - Updates: transaction status, user balance (if deposit)
- * 
+ *
  * @param {Object} data - { txId, type }
  * @returns {Object} Success response
  */
@@ -1221,7 +1240,7 @@ async function approveTransactionLocal({ txId, type }) {
         type === "deposit" ? currentBalance + amount : currentBalance - amount;
 
       // ===== 3️⃣ WRITE ALL DATA AFTER READS =====
-      
+
       // Update transaction status
       transaction.update(txRef, {
         status: "success",
@@ -1273,12 +1292,13 @@ async function approveTransactionLocal({ txId, type }) {
 
 /**
  * 🔧 LOCAL FALLBACK: Reject Transaction
- * 
+ *
  * ⚠️ REQUIREMENTS:
  * - User must be admin (verified via custom claims)
  * - Updates transaction status to "rejected"
+ * - Cancels associated order and restores stock atomically
  * - Creates user notification
- * 
+ *
  * @param {Object} data - { txId }
  * @returns {Object} Success response
  */
@@ -1292,7 +1312,7 @@ async function rejectTransactionLocal({ txId }) {
       throw new Error("Invalid transaction ID");
     }
 
-    // 🔄 ATOMIC TRANSACTION
+    // 🔄 ATOMIC TRANSACTION - Reject payment + Cancel order + Restore stock
     await runTransaction(db, async (transaction) => {
       const txRef = doc(db, "transactions", txId);
       const txSnap = await transaction.get(txRef);
@@ -1308,7 +1328,44 @@ async function rejectTransactionLocal({ txId }) {
         throw new Error(`Transaction is ${txData.status}, not pending`);
       }
 
-      // Update transaction status
+      // Get associated order
+      const orderId = txData.orderId;
+      if (orderId) {
+        const orderRef = doc(db, "orders", orderId);
+        const orderSnap = await transaction.get(orderRef);
+
+        if (orderSnap.exists()) {
+          const orderData = orderSnap.data();
+
+          // Restore stock for each item in the order
+          for (const item of orderData.items || []) {
+            const productRef = doc(db, "products", item.id || item.productId);
+            const productSnap = await transaction.get(productRef);
+
+            if (productSnap.exists()) {
+              const productData = productSnap.data();
+              const currentStock = Number(productData.stock || 0);
+              const newStock = currentStock + (item.quantity || 0);
+
+              // Update product stock (restore the quantity)
+              transaction.update(productRef, {
+                stock: newStock,
+                available: true,
+                updatedAt: serverTimestamp(),
+              });
+            }
+          }
+
+          // Cancel the associated order
+          transaction.update(orderRef, {
+            status: "cancelled",
+            cancelledAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // Update transaction status to rejected
       transaction.update(txRef, {
         status: "rejected",
         updatedAt: serverTimestamp(),
@@ -1325,7 +1382,7 @@ async function rejectTransactionLocal({ txId }) {
       });
     });
 
-    console.log(`✅ Transaction ${txId} rejected locally`);
+    console.log(`✅ Transaction ${txId} rejected & stock restored`);
     return {
       success: true,
       message: "Transaction rejected",
@@ -1364,21 +1421,26 @@ function renderOrdersSummary(orders) {
       </div>
       ${orders
         .slice(0, 5)
-        .map(
-          (order, i) => {
-            const statusColor = 
-              order.status === "pending" ? "#d4af37" :
-              order.status === "shipping" ? "#2196f3" :
-              order.status === "completed" ? "#4caf50" :
-              "#999";
-            
-            const statusLabel =
-              order.status === "pending" ? "⏳ Pending" :
-              order.status === "shipping" ? "🚚 Shipping" :
-              order.status === "completed" ? "✓ Completed" :
-              order.status;
+        .map((order, i) => {
+          const statusColor =
+            order.status === "pending"
+              ? "#d4af37"
+              : order.status === "shipping"
+                ? "#2196f3"
+                : order.status === "completed"
+                  ? "#4caf50"
+                  : "#999";
 
-            return `
+          const statusLabel =
+            order.status === "pending"
+              ? "⏳ Pending"
+              : order.status === "shipping"
+                ? "🚚 Shipping"
+                : order.status === "completed"
+                  ? "✓ Completed"
+                  : order.status;
+
+          return `
         <div class="table-row" style="animation-delay: ${i * 50}ms">
           <div class="product-image">📦</div>
           <div class="product-info">
@@ -1397,22 +1459,25 @@ function renderOrdersSummary(orders) {
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="action-btn" onclick="showOrderDetails('${order.id}')" title="View">👁️</button>
-            ${order.status === "pending" ? `
+            ${
+              order.status === "pending"
+                ? `
               <button class="btn-ship-order" data-order-id="${order.id}" title="Ship Order" style="color: #2196f3; padding: 6px 10px; background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 6px; cursor: pointer; font-size: 12px;">
                 Ship
               </button>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
         </div>
       `;
-          }
-        )
+        })
         .join("")}
     </div>
   `;
 
   // Attach ship order handlers
-  container.querySelectorAll(".btn-ship-order").forEach(btn => {
+  container.querySelectorAll(".btn-ship-order").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const orderId = btn.dataset.orderId;
@@ -1452,7 +1517,7 @@ function attachHoldToDelete(button, productId, productName) {
     progressInterval = setInterval(() => {
       holdProgress += 50;
       const progress = (holdProgress / holdDuration) * 100;
-      // Update CSS variable for potential progress bar  
+      // Update CSS variable for potential progress bar
       button.style.setProperty("--hold-progress", progress + "%");
     }, 50);
 
@@ -1553,91 +1618,97 @@ function attachHoldToDeleteOrder(button, onComplete) {
   });
 }
 
-function showOrderDetails(orderId) {
-  const order = currentOrders.find(o => o.id === orderId);
-  if (!order) return;
-
-  const userEmail = usersCache.get(order.userId) || order.userEmail;
-  alert(`Order Details:\n\nID: ${orderId}\nUser: ${userEmail}\nTotal: ${formatCurrency(order.total)}\nStatus: ${order.status}`);
-}
-
 // ===== NOTIFICATION BADGE & BADGES =====
 function updateNotificationBadge(count) {
-  const badge = document.getElementById('notification-badge');
+  const badge = document.getElementById("notification-badge");
   if (!badge) return;
 
   if (count > 0) {
-    badge.textContent = count > 99 ? '99+' : count;
-    badge.style.display = 'inline-block';
+    badge.textContent = count > 99 ? "99+" : count;
+    badge.style.display = "inline-block";
   } else {
-    badge.style.display = 'none';
+    badge.style.display = "none";
   }
 }
 
 function updateSidebarBadges() {
   // Update Orders badge
-  const pendingOrders = currentOrders.filter(o => o.status === 'pending').length;
-  const ordersBadge = document.getElementById('orders-badge');
+  const pendingOrders = currentOrders.filter(
+    (o) => o.status === "pending",
+  ).length;
+  const ordersBadge = document.getElementById("orders-badge");
   if (ordersBadge) {
     if (pendingOrders > 0) {
       ordersBadge.textContent = pendingOrders;
-      ordersBadge.style.display = 'inline-flex';
+      ordersBadge.style.display = "inline-flex";
     } else {
-      ordersBadge.style.display = 'none';
+      ordersBadge.style.display = "none";
     }
   }
 
   // Update Transactions badge
-  const pendingTransactions = currentTransactions.filter(t => t.status === 'pending').length;
-  const txBadge = document.getElementById('transactions-badge');
+  const pendingTransactions = currentTransactions.filter(
+    (t) => t.status === "pending",
+  ).length;
+  const txBadge = document.getElementById("transactions-badge");
   if (txBadge) {
     if (pendingTransactions > 0) {
       txBadge.textContent = pendingTransactions;
-      txBadge.style.display = 'inline-flex';
+      txBadge.style.display = "inline-flex";
     } else {
-      txBadge.style.display = 'none';
+      txBadge.style.display = "none";
     }
   }
 
   // Update Deposits badge
-  const pendingDeposits = currentDeposits.filter(d => d.status === 'pending').length;
-  const depositsBadge = document.getElementById('deposits-badge');
+  const pendingDeposits = currentDeposits.filter(
+    (d) => d.status === "pending",
+  ).length;
+  const depositsBadge = document.getElementById("deposits-badge");
   if (depositsBadge) {
     if (pendingDeposits > 0) {
       depositsBadge.textContent = pendingDeposits;
-      depositsBadge.style.display = 'inline-flex';
+      depositsBadge.style.display = "inline-flex";
     } else {
-      depositsBadge.style.display = 'none';
+      depositsBadge.style.display = "none";
     }
   }
 
   // Update notification badge
-  updateNotificationBadge(pendingTransactions + pendingOrders + pendingDeposits);
+  updateNotificationBadge(
+    pendingTransactions + pendingOrders + pendingDeposits,
+  );
 }
 
 function updateNotificationDropdown() {
-  const notificationList = document.getElementById('notification-list');
+  const notificationList = document.getElementById("notification-list");
   if (!notificationList) return;
 
   const pendingItems = [
-    ...currentTransactions.filter(t => t.status === 'pending').map(t => ({
-      type: 'transaction',
-      icon: '💰',
-      message: `Transaction ${t.id?.substring(0, 8)} pending approval`,
-      time: t.createdAt
-    })),
-    ...currentOrders.filter(o => o.status === 'pending').map(o => ({
-      type: 'order',
-      icon: '📦',
-      message: `Order ${o.id?.substring(0, 8)} needs review`,
-      time: o.createdAt
-    })),
-    ...currentDeposits.filter(d => d.status === 'pending').map(d => ({
-      type: 'deposit',
-      icon: '🏦',
-      message: `Deposit ${formatCurrency(d.amount)} from ${d.userId?.substring(0, 8)}`,
-      time: d.createdAt
-    }))
+    ...currentTransactions
+      .filter((t) => t.status === "pending")
+      .map((t) => ({
+        type: "transaction",
+        icon: "💰",
+        message: `Transaction ${t.id?.substring(0, 8)} pending approval`,
+        time: t.createdAt,
+      })),
+    ...currentOrders
+      .filter((o) => o.status === "pending")
+      .map((o) => ({
+        type: "order",
+        icon: "📦",
+        message: `Order ${o.id?.substring(0, 8)} needs review`,
+        time: o.createdAt,
+      })),
+    ...currentDeposits
+      .filter((d) => d.status === "pending")
+      .map((d) => ({
+        type: "deposit",
+        icon: "🏦",
+        message: `Deposit ${formatCurrency(d.amount)} from ${d.userId?.substring(0, 8)}`,
+        time: d.createdAt,
+      })),
   ];
 
   if (pendingItems.length === 0) {
@@ -1649,7 +1720,9 @@ function updateNotificationDropdown() {
     return;
   }
 
-  notificationList.innerHTML = pendingItems.map(item => `
+  notificationList.innerHTML = pendingItems
+    .map(
+      (item) => `
     <div class="notification-item">
       <div style="display: flex; align-items: center; gap: 8px;">
         <span>${item.icon}</span>
@@ -1657,16 +1730,18 @@ function updateNotificationDropdown() {
       </div>
       <div class="notification-time">${formatTime(item.time)}</div>
     </div>
-  `).join('');
+  `,
+    )
+    .join("");
 }
 
 function formatTime(timestamp) {
-  if (!timestamp) return 'Just now';
+  if (!timestamp) return "Just now";
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
-  
-  if (seconds < 60) return 'Just now';
+
+  if (seconds < 60) return "Just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return date.toLocaleDateString();
@@ -1691,6 +1766,84 @@ function showToast(message, type = "info") {
   }, 3000);
 }
 
+// ===== VIEW ORDER DETAILS MODAL =====
+function showOrderDetails(orderId) {
+  const order = currentOrders.find((o) => o.id === orderId);
+  if (!order) return;
+
+  let modal = document.getElementById("order-details-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "order-details-modal";
+    document.body.appendChild(modal);
+  }
+
+  const itemsHTML = (order.items || [])
+    .map(
+      (item) => `
+      <div style="padding: 12px 0; border-bottom: 1px solid #1c1c1e; display: flex; justify-content: space-between;">
+        <div>
+          <div style="color: #fff; font-weight: 600;">${item.name}</div>
+          <div style="color: #aaa; font-size: 13px;">x${item.quantity} @ ${(item.finalPrice || item.price).toLocaleString("vi-VN")}đ</div>
+        </div>
+        <div style="color: #d4af37; font-weight: 600;">${((item.finalPrice || item.price) * item.quantity).toLocaleString("vi-VN")}đ</div>
+      </div>
+    `,
+    )
+    .join("");
+
+  const userEmail = usersCache.get(order.userId) || "Loading...";
+
+  modal.innerHTML = `
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 2000; display: flex; align-items: center; justify-content: center;" id="order-modal-overlay">
+      <div style="background: #0a0a0b; border: 1px solid #1c1c1e; border-radius: 12px; padding: 28px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="color: #d4af37; margin: 0;">Order ${order.id.substring(0, 8)}</h3>
+          <button style="background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer;">✕</button>
+        </div>
+
+        <div style="background: #121214; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div>
+              <div style="color: #aaa; font-size: 12px;">Customer</div>
+              <div style="color: #fff; font-weight: 600;">${userEmail}</div>
+            </div>
+            <div>
+              <div style="color: #aaa; font-size: 12px;">Status</div>
+              <div style="color: #d4af37; font-weight: 600; text-transform: uppercase;">${order.status}</div>
+            </div>
+            <div>
+              <div style="color: #aaa; font-size: 12px;">Created</div>
+              <div style="color: #fff; font-size: 13px;">${order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString("vi-VN") : "N/A"}</div>
+            </div>
+            <div>
+              <div style="color: #aaa; font-size: 12px;">Total</div>
+              <div style="color: #d4af37; font-weight: 700; font-size: 16px;">${order.total.toLocaleString("vi-VN")}đ</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #121214; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <h4 style="color: #fff; margin: 0 0 12px 0;">Items</h4>
+          ${itemsHTML}
+        </div>
+
+        <button style="width: 100%; padding: 12px; background: #1c1c1e; color: #d4af37; border: 1px solid #1c1c1e; border-radius: 6px; cursor: pointer; font-weight: 600;" onclick="document.getElementById('order-details-modal').style.display = 'none';">Close</button>
+      </div>
+    </div>
+  `;
+
+  modal.style.display = "block";
+  const closeBtn =
+    modal.querySelector("button:nth-child(2)") ||
+    modal.querySelector(".close-btn");
+  const overlay = document.getElementById("order-modal-overlay");
+
+  if (closeBtn) closeBtn.onclick = () => (modal.style.display = "none");
+  if (overlay) overlay.onclick = () => (modal.style.display = "none");
+}
+window.showOrderDetails = showOrderDetails;
+
 // ===== EDIT DRAWER =====
 function openEditDrawer(product) {
   editingProductId = product.id;
@@ -1708,6 +1861,8 @@ function openEditDrawer(product) {
     product.available === false ? "false" : "true";
   document.getElementById("form-show-on-home").checked =
     product.showOnHome === true;
+  document.getElementById("form-vip-store").checked =
+    product.isVIPStore === true;
 
   document.getElementById("edit-drawer").classList.add("open");
   document.getElementById("drawer-overlay").classList.add("open");
@@ -1732,6 +1887,7 @@ function closeEditDrawer() {
   document.getElementById("form-discount").value = "";
   document.getElementById("form-available").value = "true";
   document.getElementById("form-show-on-home").checked = false;
+  document.getElementById("form-vip-store").checked = false;
 }
 
 // ===== DELETE MODAL =====
@@ -1771,24 +1927,24 @@ function setupOrdersListener() {
     (snapshot) => {
       currentOrders = snapshot.docs.map((docSnap) => {
         const data = docSnap.data();
-        
+
         // Fetch user email and cache it
         if (data.userId && !usersCache.has(data.userId)) {
           getDoc(doc(db, "users", data.userId))
-            .then(userSnap => {
+            .then((userSnap) => {
               if (userSnap.exists()) {
                 usersCache.set(data.userId, userSnap.data().email);
               }
             })
-            .catch(err => console.warn("Error fetching user:", err));
+            .catch((err) => console.warn("Error fetching user:", err));
         }
-        
+
         return {
           id: docSnap.id,
           ...data,
         };
       });
-      
+
       renderStatCards(currentOrders);
       renderOrdersSummary(currentOrders);
       renderOrdersTable(currentOrders);
@@ -1816,7 +1972,7 @@ function setupTransactionsListener() {
     query(
       collection(db, "transactions"),
       where("status", "==", "pending"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     ),
     (snapshot) => {
       currentTransactions = snapshot.docs.map((docSnap) => ({
@@ -1840,7 +1996,7 @@ function setupDepositsListener() {
     query(
       collection(db, "deposit_requests"),
       where("status", "==", "pending"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     ),
     (snapshot) => {
       currentDeposits = snapshot.docs.map((docSnap) => ({
@@ -1869,18 +2025,22 @@ function setupReviewsListener() {
         id: docSnap.id,
         ...docSnap.data(),
       }));
-      
+
       // Fetch product names for all reviews
       const reviewsWithProducts = await Promise.all(
         currentReviews.map(async (review) => {
-          const productDoc = await getDoc(doc(db, "products", review.productId));
+          const productDoc = await getDoc(
+            doc(db, "products", review.productId),
+          );
           return {
             ...review,
-            productName: productDoc.exists() ? productDoc.data().name : "Unknown Product"
+            productName: productDoc.exists()
+              ? productDoc.data().name
+              : "Unknown Product",
           };
-        })
+        }),
       );
-      
+
       currentReviews = reviewsWithProducts;
       renderReviewsTable(currentReviews);
     },
@@ -1911,7 +2071,10 @@ function renderReviewsTable(reviews, filteredReviews = null) {
   function renderStars(rating) {
     return Array(5)
       .fill("⭐")
-      .map((star, i) => `<span style="opacity: ${(i + 1) <= rating ? "1" : "0.3"};">${star}</span>`)
+      .map(
+        (star, i) =>
+          `<span style="opacity: ${i + 1 <= rating ? "1" : "0.3"};">${star}</span>`,
+      )
       .join("");
   }
 
@@ -1941,7 +2104,7 @@ function renderReviewsTable(reviews, filteredReviews = null) {
             ${formatDate(review.createdAt?.toDate?.() || new Date(review.createdAt))}
           </div>
         </div>
-      `
+      `,
         )
         .join("")}
     </div>
@@ -2041,7 +2204,7 @@ function initializeAdmin() {
       e.stopPropagation();
       notificationDropdown.classList.toggle("show");
     };
-    
+
     // Close dropdown when clicking outside
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".topbar-right")) {
@@ -2064,7 +2227,7 @@ function initializeAdmin() {
   // Orders tab switching
   const ordersTabActive = document.getElementById("orders-tab-active");
   const ordersTabHistory = document.getElementById("orders-tab-history");
-  
+
   if (ordersTabActive && ordersTabHistory) {
     ordersTabActive.addEventListener("click", () => {
       localStorage.setItem("orders-tab", "active");
@@ -2104,6 +2267,7 @@ function initializeAdmin() {
     document.getElementById("form-discount").value = "";
     document.getElementById("form-available").value = "true";
     document.getElementById("form-show-on-home").checked = false; // Reset checkbox
+    document.getElementById("form-vip-store").checked = false; // Reset VIP store checkbox
 
     document.getElementById("edit-drawer").classList.add("open");
     overlay.classList.add("open");
@@ -2142,6 +2306,8 @@ function initializeAdmin() {
       document.getElementById("form-available").value === "true";
     const showOnHome =
       document.getElementById("form-show-on-home").checked === true;
+    const isVIPStore =
+      document.getElementById("form-vip-store").checked === true;
 
     if (!name || price <= 0 || stock < 0 || discount < 0 || discount > 100) {
       showToast(
@@ -2164,6 +2330,7 @@ function initializeAdmin() {
       discount,
       available,
       showOnHome,
+      isVIPStore,
       createdAt: new Date(),
     };
 
@@ -2351,12 +2518,15 @@ function setupReviewsUI() {
 
   const applyFilters = () => {
     const searchQuery = searchInput.value.toLowerCase().trim();
-    const ratingFilter = filterRating.value ? parseInt(filterRating.value) : null;
+    const ratingFilter = filterRating.value
+      ? parseInt(filterRating.value)
+      : null;
 
     const filtered = currentReviews.filter((review) => {
       const matchesSearch =
         review.productName.toLowerCase().includes(searchQuery) ||
-        (review.userName && review.userName.toLowerCase().includes(searchQuery)) ||
+        (review.userName &&
+          review.userName.toLowerCase().includes(searchQuery)) ||
         review.comment.toLowerCase().includes(searchQuery);
 
       const matchesRating = !ratingFilter || review.rating === ratingFilter;
@@ -2483,7 +2653,6 @@ function init() {
 
       // Initialize admin dashboard
       initializeAdmin();
-
     } catch (error) {
       console.error("❌ Error checking admin claims:", error);
       window.location.href = "login.html";

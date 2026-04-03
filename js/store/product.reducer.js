@@ -16,6 +16,12 @@ export function productReducer(state = initialState, action) {
         error: null,
       };
 
+    case ACTION_TYPES.SET_PRODUCTS_LOADING:
+      return {
+        ...state,
+        loading: action.payload,
+      };
+
     default:
       return state;
   }

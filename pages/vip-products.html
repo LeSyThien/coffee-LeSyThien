@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VIP Store - Premium Coffee</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/pages/products.css" />
+    <style>
+      .vip-store-header {
+        background: linear-gradient(
+          135deg,
+          #d4af37 0%,
+          #c89b3c 50%,
+          #8b7200 100%
+        );
+        color: #fff;
+        padding: 3rem 2rem;
+        text-align: center;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .vip-store-header::before {
+        content: "👑";
+        position: absolute;
+        font-size: 8rem;
+        opacity: 0.1;
+        top: -30px;
+        right: -30px;
+      }
+
+      .vip-store-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .vip-store-header p {
+        margin: 0.5rem 0 0 0;
+        font-size: 1.1rem;
+        opacity: 0.95;
+      }
+
+      .vip-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+    <div id="cart-root"></div>
+
+    <main class="products-page">
+      <div class="products-container">
+        <div class="vip-store-header">
+          <h1>👑 VIP Store</h1>
+          <p>Exclusive Collection for Our Most Valued Customers</p>
+          <div class="vip-badge">✨ Premium Selection ✨</div>
+        </div>
+
+        <div id="vip-products" class="products-grid"></div>
+
+        <div id="no-vip-products" class="no-products hidden">
+          <div class="no-products-icon">👑</div>
+          <p>Coming Soon!</p>
+          <p style="font-size: 0.95rem; color: #666">
+            Exclusive VIP products will be available soon
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import { initRender } from "../js/core/render.js";
+      import store from "../js/store/index.js";
+      import { ACTION_TYPES } from "../js/store/actions.js";
+      import { initNavbar } from "../js/components/navbar.js";
+      import { initCart } from "../js/components/cart.js";
+      import { toastError } from "../js/services/toast.service.js";
+      import {
+        db,
+        calculateMemberRank,
+      } from "../js/services/firebase.service.js";
+      import {
+        collection,
+        query,
+        where,
+        onSnapshot,
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+      // Initialize
+      initRender();
+      initializeAuth();
+      initNavbar();
+      initCart();
+
+      // Function to render VIP products
+      function renderVipProducts(vipProducts, userVipLevel) {
+        const container = document.getElementById("vip-products");
+        const noProductsMessage = document.getElementById("no-vip-products");
+
+        if (!container) return;
+
+        if (!vipProducts || vipProducts.length === 0) {
+          container.innerHTML = "";
+          noProductsMessage.classList.remove("hidden");
+          return;
+        }
+
+        noProductsMessage.classList.add("hidden");
+
+        const productsHTML = vipProducts
+          .map((product) => {
+            const finalPrice =
+              product.price * (1 - (product.discount || 0) / 100);
+            return `
+              <div class="product-card">
+                <div class="product-image">
+                  ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">` : "☕"}
+                </div>
+                <div class="product-info">
+                  <h3 class="product-name">${product.name}</h3>
+                  <p class="product-desc">${product.description || ""}</p>
+                  <div class="product-price">
+                    ${product.discount > 0 ? `<span style="text-decoration: line-through; color: #888;">${product.price.toLocaleString("vi-VN")}đ</span>` : ""}
+                    <span style="color: #d4af37; font-weight: bold;">${finalPrice.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                  <div style="margin-top: 0.5rem; color: #888; font-size: 0.85rem;">Stock: ${product.stock}</div>
+                </div>
+                <button class="add-to-cart-btn" data-product-id="${product.id}" style="width: 100%; padding: 0.75rem; background: #d4af37; color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                  ✨ Add to Cart
+                </button>
+              </div>
+            `;
+          })
+          .join("");
+
+        container.innerHTML = productsHTML;
+
+        // Add to cart handlers
+        container.querySelectorAll(".add-to-cart-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const productId = btn.dataset.productId;
+            const product = vipProducts.find((p) => p.id === productId);
+            if (product) {
+              store.dispatch({
+                type: ACTION_TYPES.ADD_TO_CART,
+                payload: {
+                  id: product.id,
+                  name: product.name,
+                  price: product.price,
+                  discount: product.discount || 0,
+                  image: product.image,
+                },
+              });
+              btn.textContent = "✓ Added!";
+              setTimeout(() => {
+                btn.textContent = "✨ Add to Cart";
+              }, 1500);
+            }
+          });
+        });
+      }
+
+      // Load VIP products
+      onSnapshot(
+        query(collection(db, "products"), where("isVIPStore", "==", true)),
+        (snapshot) => {
+          const vipProducts = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          const state = store.getState();
+          const userVipLevel = state.user?.data?.vipLevel || 0;
+          renderVipProducts(vipProducts, userVipLevel);
+        },
+        (error) => {
+          console.error("VIP Products listener error:", error);
+          toastError("Failed to load VIP products", 3000);
+        },
+      );
+
+      // Re-render when user VIP level changes
+      store.subscribe(() => {
+        const state = store.getState();
+        const userVipLevel = state.user?.data?.vipLevel || 0;
+        const container = document.getElementById("vip-products");
+        if (container && container.innerHTML) {
+          // VIP level updated, refresh rendering if needed
+        }
+      });
+    </script>
+  </body>
+</html>

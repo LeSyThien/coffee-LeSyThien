@@ -1,5 +1,10 @@
 import store from "../store/index.js";
 import { ACTION_TYPES } from "../store/actions.js";
+import {
+  toastSuccess,
+  toastError,
+  initializeToastContainer,
+} from "../services/toast.service.js";
 
 function formatCurrency(value) {
   if (typeof value !== "number") value = Number(value) || 0;
@@ -16,8 +21,30 @@ export function renderProducts(state) {
   const container = document.getElementById("products");
   if (!container) return;
 
+  // Initialize toast system
+  initializeToastContainer();
+
+  if (state.products?.loading) {
+    container.innerHTML = new Array(8)
+      .fill(0)
+      .map(
+        () => `
+        <div class="product-card skeleton-card">
+          <div class="skeleton-image"></div>
+          <div class="skeleton-text title"></div>
+          <div class="skeleton-text"></div>
+          <div class="skeleton-text description"></div>
+          <div class="skeleton-button"></div>
+        </div>
+      `,
+      )
+      .join("");
+    return;
+  }
+
   let products = state.products?.list || [];
   const searchQuery = state.ui?.searchQuery || "";
+  const userVipLevel = state.user?.data?.vipLevel || 0;
 
   // Check if we're on the homepage - only show products where showOnHome == true
   const isHomePage =
@@ -57,12 +84,19 @@ export function renderProducts(state) {
       const finalPrice = calculateFinalPrice(product);
       const stockColor = Number(product.stock) <= 5 ? "#ff4757" : "#888";
 
+      // Check VIP exclusivity
+      const isVIPOnly = product.isVIPOnly || false;
+      const requiredVIP = product.requiredVIP || 1;
+      const isUserVIPEligible = userVipLevel >= requiredVIP;
+      const canAddToCart = !isOutOfStock && (!isVIPOnly || isUserVIPEligible);
+
       return `
     <div class="product-card" data-id="${product.id}" ${isOutOfStock ? 'data-out-of-stock="true"' : ""}>
-      <div class="product-image-container" ${isOutOfStock ? 'style="filter: grayscale(100%); opacity: 0.6;"' : ""}>
+      <div class="product-image-container" ${isOutOfStock || (isVIPOnly && !isUserVIPEligible) ? 'style="filter: grayscale(100%); opacity: 0.6;"' : ""}>
         ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-image">` : `<div class="product-image" style="background: var(--color-surface-l2); display: flex; align-items: center; justify-content: center; font-size: 3rem;">☕</div>`}
       </div>
       ${discount > 0 ? `<div class="discount-badge">${discount}% OFF</div>` : ""}
+      ${isVIPOnly ? `<div class="discount-badge" style="background: linear-gradient(45deg, #d4af37, #f9e29c); color: #000;">VIP ${requiredVIP}+</div>` : ""}
       <div class="product-content">
         <h3 class="product-name">${product.name}</h3>
         ${
@@ -86,9 +120,22 @@ export function renderProducts(state) {
         </div>
         <div class="product-stock" style="color: ${stockColor};">Stock: ${product.stock}</div>
         <div class="product-footer">
-          <button class="add-to-cart-btn" data-id="${product.id}" ${isOutOfStock ? "disabled" : ""}>
-            ${isOutOfStock ? "Out of Stock" : "Add to Cart"}
-          </button>
+          ${
+            isVIPOnly && !isUserVIPEligible
+              ? `
+            <button class="add-to-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+              VIP ${requiredVIP}+ Only
+            </button>
+            <div style="color: #d4af37; font-size: 11px; margin-top: 6px; text-align: center; font-weight: 600;">
+              Upgrade to VIP ${requiredVIP} to unlock
+            </div>
+          `
+              : `
+            <button class="add-to-cart-btn" data-id="${product.id}" ${!canAddToCart ? "disabled" : ""}>
+              ${isOutOfStock ? "Out of Stock" : "Add to Cart"}
+            </button>
+          `
+          }
         </div>
       </div>
     </div>
@@ -108,14 +155,31 @@ export function renderProducts(state) {
       const productId = btn.dataset.id;
       const product = filteredProducts.find((p) => p.id === productId);
       if (product && Number(product.stock) > 0) {
-        // Add scale animation to button
-        btn.style.transform = "scale(0.95)";
-        setTimeout(() => {
-          btn.style.transform = "";
-        }, 150);
+        // Check VIP eligibility one more time
+        const requiredVIP = product.requiredVIP || 1;
+        if (product.isVIPOnly && userVipLevel < requiredVIP) {
+          toastError(
+            `❌ VIP ${requiredVIP}+ membership required for this product`,
+          );
+          return;
+        }
 
-        // Show cart float animation
-        showCartFloat(product.name);
+        // Add scale animation + ripple to button for optimistic UI
+        btn.classList.add("optimistic", "ripple");
+        setTimeout(() => {
+          btn.classList.remove("optimistic", "ripple");
+        }, 500);
+
+        // Optimistic UI feedback - pulse cart button
+        const cartBtn = document.querySelector("#cart-btn");
+        if (cartBtn) {
+          cartBtn.classList.add("pulse");
+          setTimeout(() => {
+            cartBtn.classList.remove("pulse");
+          }, 600);
+        }
+
+        toastSuccess(`✅ Đã thêm ${product.name} vào giỏ hàng`, 3000);
 
         // Use final price with discount applied
         const finalPrice = calculateFinalPrice(product);
@@ -142,16 +206,4 @@ export function renderProducts(state) {
 
     window.location.href = `product.html?id=${productId}`;
   });
-}
-
-// Cart float animation function
-function showCartFloat(productName) {
-  const floatEl = document.createElement("div");
-  floatEl.className = "cart-float";
-  floatEl.textContent = `Added ${productName} to cart!`;
-  document.body.appendChild(floatEl);
-
-  setTimeout(() => {
-    floatEl.remove();
-  }, 3000);
 }

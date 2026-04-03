@@ -1,5 +1,7 @@
 import { initRender } from "./core/render.js";
 import { initializeAuth } from "./core/auth-init.js";
+import { initNavbar } from "./components/navbar.js";
+import { initCart } from "./components/cart.js";
 import { initBannerCarousel } from "./components/carousel.js";
 import store from "./store/index.js";
 import { ACTION_TYPES } from "./store/actions.js";
@@ -10,7 +12,13 @@ initRender();
 // 2. Initialize Firebase Auth - restores session, sets up realtime listeners
 initializeAuth();
 
-// 3. Initialize banner carousel on homepage
+// 3. Initialize navbar component
+initNavbar();
+
+// 4. Initialize cart component
+initCart();
+
+// 5. Initialize banner carousel on homepage
 document.addEventListener("DOMContentLoaded", () => {
   if (document.querySelector(".hero-section")) {
     setTimeout(() => {

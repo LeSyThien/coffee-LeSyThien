@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../css/layout.css" />
     <link rel="stylesheet" href="../css/components.css" />
     <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
     <style>
       body {
         background: #0a0a0b;
@@ -29,7 +30,7 @@
         height: 520px;
         object-fit: cover;
         border-radius: 16px;
-        box-shadow: 0 16px 40px rgba(0,0,0,.6);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
       }
       .product-info {
         display: flex;
@@ -68,7 +69,7 @@
         font-weight: 700;
         cursor: pointer;
         width: fit-content;
-        transition: all .2s ease;
+        transition: all 0.2s ease;
       }
       .btn-primary:hover {
         transform: scale(1.03);
@@ -105,8 +106,8 @@
     </style>
   </head>
   <body>
-    <header id="navbar"></header>
-    <div id="cart-container"></div>
+    <div id="navbar-root"></div>
+    <div id="cart-root"></div>
 
     <main class="product-detail-wrapper">
       <div id="product-root">

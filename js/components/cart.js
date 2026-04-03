@@ -4,6 +4,12 @@ import { auth } from "../services/firebase.service.js";
 import { checkoutTransaction } from "../services/transaction.service.js";
 import { db } from "../services/firebase.service.js";
 import {
+  toastSuccess,
+  toastError,
+  toastInfo,
+  initializeToastContainer,
+} from "../services/toast.service.js";
+import {
   onSnapshot,
   query,
   collection,
@@ -11,76 +17,98 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 export function renderCart(state) {
-  let cartElement = document.getElementById("cart");
-  const cartContainer = document.getElementById("cart-container");
-
-  if (!cartElement) {
-    cartElement = document.createElement("div");
-    cartElement.id = "cart";
-    cartElement.innerHTML = `
-      <h3 style="margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px;">Your Cart</h3>
-      <div class="cart-list"></div>
-      <div style="margin-top: 15px; display: flex; justify-content: space-between; font-weight: bold;">
-        <span>Total:</span>
-        <span class="cart-total">0đ</span>
-      </div>
-    `;
-    if (cartContainer) {
-      cartContainer.appendChild(cartElement);
-    } else {
-      document.body.appendChild(cartElement);
+  try {
+    // Check if cart container exists in DOM
+    const cartContainer = document.getElementById("cart-root");
+    if (!cartContainer) {
+      return; // Silent return, no logging
     }
-  }
 
-  const { cartOpen } = state.ui;
-  const { items, total } = state.cart;
-  const user = state.user.data;
-
-  // Toggle trạng thái hiển thị bằng Class
-  if (cartOpen) {
-    cartElement.classList.add("open");
-  } else {
-    cartElement.classList.remove("open");
-  }
-
-  // Render danh sách sản phẩm
-  const cartContent =
-    items.length > 0
-      ? items
-          .map(
-            (item) => `
-        <div class="cart-item">
-          <span>${item.name} x${item.quantity}</span>
-          <span>${((item.finalPrice || item.price) * item.quantity).toLocaleString()}đ</span>
+    // Initialize cart HTML structure if missing
+    if (!cartContainer.innerHTML) {
+      cartContainer.innerHTML = `
+        <div class="cart-sidebar">
+          <div class="cart-header">
+            <h3>🛒 Your Cart</h3>
+            <button id="close-cart-btn" style="background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer;">✕</button>
+          </div>
+          <div class="cart-list"></div>
+          <div class="cart-total-section">
+            <div>Total: <span class="cart-total">0đ</span></div>
+          </div>
         </div>
-      `,
-          )
-          .join("")
-      : '<p class="empty-msg">Your cart is empty</p>';
+      `;
 
-  // Cập nhật vùng dữ liệu
-  const listContainer = cartElement.querySelector(".cart-list");
-  const totalContainer = cartElement.querySelector(".cart-total");
-
-  if (listContainer) listContainer.innerHTML = cartContent;
-  if (totalContainer) totalContainer.innerText = `${total.toLocaleString()}đ`;
-
-  // Add or update checkout section
-  let checkoutSection = cartElement.querySelector(".cart-checkout");
-  if (items.length > 0) {
-    if (!checkoutSection) {
-      // Create checkout section
-      checkoutSection = document.createElement("div");
-      checkoutSection.className = "cart-checkout";
-      cartElement.appendChild(checkoutSection);
+      // Add close button handler
+      const closeBtn = cartContainer.querySelector("#close-cart-btn");
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          store.dispatch({ type: ACTION_TYPES.TOGGLE_CART });
+        };
+      }
     }
 
-    const enoughBalance = user && user.balance >= total;
-    const balanceStatus = user
-      ? `Số dư: ${user.balance.toLocaleString()}đ`
-      : "Chưa đăng nhập";
+    // Safe check for state structure
+    if (!state || !state.ui || !state.cart) {
+      return;
+    }
 
-    checkoutSection.innerHTML = `
+    const { cartOpen } = state.ui;
+    const { items, total } = state.cart;
+    const user = state.user?.data;
+
+    // Check if cart-list container exists (safe check)
+    const cartListContainer = cartContainer.querySelector(".cart-list");
+    const cartTotalContainer = cartContainer.querySelector(".cart-total");
+    if (!cartListContainer || !cartTotalContainer) {
+      return;
+    }
+
+    // Toggle trạng thái hiển thị bằng Class
+    if (cartOpen) {
+      cartContainer.classList.add("open");
+    } else {
+      cartContainer.classList.remove("open");
+    }
+
+    // Render danh sách sản phẩm
+    const cartContent =
+      items.length > 0
+        ? items
+            .map(
+              (item) => `
+          <div class="cart-item">
+            <span>${item.name} x${item.quantity}</span>
+            <span>${((item.finalPrice || item.price) * item.quantity).toLocaleString()}đ</span>
+          </div>
+        `,
+            )
+            .join("")
+        : '<p class="empty-msg">Your cart is empty</p>';
+
+    // Cập nhật vùng dữ liệu
+    const listContainer = cartContainer.querySelector(".cart-list");
+    const totalContainer = cartContainer.querySelector(".cart-total");
+
+    if (listContainer) listContainer.innerHTML = cartContent;
+    if (totalContainer) totalContainer.innerText = `${total.toLocaleString()}đ`;
+
+    // Add or update checkout section
+    let checkoutSection = cartContainer.querySelector(".cart-checkout");
+    if (items.length > 0) {
+      if (!checkoutSection) {
+        // Create checkout section
+        checkoutSection = document.createElement("div");
+        checkoutSection.className = "cart-checkout";
+        cartContainer.appendChild(checkoutSection);
+      }
+
+      const enoughBalance = user && user.balance >= total;
+      const balanceStatus = user
+        ? `Số dư: ${user.balance.toLocaleString()}đ`
+        : "Chưa đăng nhập";
+
+      checkoutSection.innerHTML = `
       <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333;">
         <div style="font-size: 12px; color: #aaa; margin-bottom: 10px;">
           ${balanceStatus}
@@ -110,41 +138,45 @@ export function renderCart(state) {
       </div>
     `;
 
-    // Bind checkout button
-    const checkoutBtn = checkoutSection.querySelector("#checkout-btn");
-    if (checkoutBtn) {
-      checkoutBtn.onclick = async (e) => {
-        e.stopPropagation();
+      // Bind checkout button
+      const checkoutBtn = checkoutSection.querySelector("#checkout-btn");
+      if (checkoutBtn) {
+        checkoutBtn.onclick = async (e) => {
+          e.stopPropagation();
 
-        // ✅ SECURITY FIX: Prevent duplicate checkout requests
-        if (checkoutBtn.disabled) {
-          return;
-        }
+          // ✅ SECURITY FIX: Prevent duplicate checkout requests
+          if (checkoutBtn.disabled) {
+            return;
+          }
 
-        if (!user) {
-          // Redirect to login
-          window.location.href = "login.html";
-          return;
-        }
+          if (!user) {
+            // Redirect to login
+            window.location.href = "login.html";
+            return;
+          }
 
-        if (user.balance < total) {
-          // Redirect to deposit
-          window.location.href = "deposit.html";
-          return;
-        }
+          if (user.balance < total) {
+            // Redirect to deposit
+            window.location.href = "deposit.html";
+            return;
+          }
 
-        // Proceed with checkout
-        checkoutBtn.disabled = true;
-        const originalText = checkoutBtn.textContent;
-        checkoutBtn.textContent = "⏳ Processing...";
-        await handleCheckout(items, total);
-        checkoutBtn.disabled = false;
-        checkoutBtn.textContent = originalText;
-      };
+          // Proceed with checkout
+          checkoutBtn.disabled = true;
+          const originalText = checkoutBtn.textContent;
+          checkoutBtn.textContent = "⏳ Processing...";
+          await handleCheckout(items, total);
+          checkoutBtn.disabled = false;
+          checkoutBtn.textContent = originalText;
+        };
+      }
+    } else if (checkoutSection) {
+      // Remove checkout section if cart is empty
+      checkoutSection.remove();
     }
-  } else if (checkoutSection) {
-    // Remove checkout section if cart is empty
-    checkoutSection.remove();
+  } catch (error) {
+    console.error("Error rendering cart:", error);
+    console.warn("Cart rendering failed, DOM may not be ready");
   }
 }
 
@@ -197,9 +229,9 @@ async function handleCheckout(items, total) {
 
     // Inform user of pending approval
     const orderIdShort = result.orderId.substring(0, 8);
-    showToast(
+    toastInfo(
       `⏳ Đã tạo đơn hàng ${orderIdShort}, chờ admin duyệt thanh toán...`,
-      "info",
+      4000,
     );
 
     // ✅ NEW: Listen for order transaction status changes
@@ -215,7 +247,7 @@ async function handleCheckout(items, total) {
     if (error.message) {
       errorMsg = "❌ " + error.message;
     }
-    showToast(errorMsg, "error");
+    toastError(errorMsg, 5000);
   } finally {
     // Clear global loading state
     store.dispatch({ type: ACTION_TYPES.SET_GLOBAL_LOADING, payload: false });
@@ -234,15 +266,15 @@ function setupOrderTransactionListener(userId, txId, orderIdShort) {
         if (doc.id === txId) {
           const data = doc.data();
           if (data.status === "success") {
-            showToast(
+            toastSuccess(
               `✅ Thanh toán được duyệt! Đơn hàng ${orderIdShort} đã được xác nhận.`,
-              "success",
+              4000,
             );
             unsubscribe(); // Stop listening after success
           } else if (data.status === "rejected") {
-            showToast(
+            toastError(
               `❌ Thanh toán bị từ chối. Vui lòng liên hệ admin để biết thêm chi tiết.`,
-              "error",
+              5000,
             );
             unsubscribe(); // Stop listening after rejection
           }
@@ -255,52 +287,12 @@ function setupOrderTransactionListener(userId, txId, orderIdShort) {
   );
 }
 
-// Simple toast notification (can be improved later)
-function showToast(message, type = "info") {
-  const existingToast = document.getElementById("app-toast");
-  if (existingToast) existingToast.remove();
+export function initCart() {
+  // Initialize toast container
+  initializeToastContainer();
 
-  const toast = document.createElement("div");
-  toast.id = "app-toast";
-  toast.textContent = message;
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: ${type === "success" ? "#4caf50" : type === "error" ? "#ff4d4f" : "#333"};
-    color: white;
-    padding: 15px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 2000;
-    animation: slideIn 0.3s ease-out;
-  `;
-
-  document.body.appendChild(toast);
-
-  // Add animation
-  if (!document.getElementById("toast-animation-style")) {
-    const style = document.createElement("style");
-    style.id = "toast-animation-style";
-    style.innerHTML = `
-      @keyframes slideIn {
-        from {
-          transform: translateX(400px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // Auto-remove after 4 seconds
-  setTimeout(() => {
-    toast.style.animation = "slideIn 0.3s ease-out reverse forwards";
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
+  renderCart(store.getState());
+  store.subscribe(() => {
+    renderCart(store.getState());
+  });
 }

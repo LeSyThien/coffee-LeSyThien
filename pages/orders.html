@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="../css/layout.css" />
     <link rel="stylesheet" href="../css/components.css" />
     <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
     <style>
       body {
         background: var(--color-surface-l0);
@@ -487,8 +488,8 @@
     </style>
   </head>
   <body>
-    <div id="navbar"></div>
-    <div id="cart-container"></div>
+    <div id="navbar-root"></div>
+    <div id="cart-root"></div>
 
     <div class="orders-container">
       <!-- Header -->
@@ -514,13 +515,22 @@
 
     <script type="module">
       import store from "../js/store/index.js";
-      import { renderNavbar } from "../js/components/navbar.js";
-      import { renderCart } from "../js/components/cart.js";
+      import { initNavbar } from "../js/components/navbar.js";
+      import { initCart } from "../js/components/cart.js";
       import { auth } from "../js/services/firebase.service.js";
       import { initializeAuth } from "../js/core/auth-init.js";
 
-      // Initialize auth and set up listeners
+      // Initialize auth and navbar
       initializeAuth();
+      initNavbar();
+      initCart();
+
+      // Authentication check
+      auth.onAuthStateChanged((user) => {
+        if (!user) {
+          window.location.href = "login.html";
+        }
+      });
 
       let expandedCardId = null;
 
@@ -528,10 +538,6 @@
       function renderOrders(state) {
         const container = document.getElementById("orders-content");
         const orders = state.orders.list || [];
-
-        // Render navbar and cart on this page
-        renderNavbar(state);
-        renderCart(state);
 
         if (orders.length === 0) {
           container.innerHTML = `
@@ -637,7 +643,9 @@
                   </div>
 
                   <!-- Confirm Receipt Button (for shipping status) -->
-                  ${order.status === "shipping" ? `
+                  ${
+                    order.status === "shipping"
+                      ? `
                     <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--color-border-subtle);">
                       <button class="confirm-received-btn" data-order-id="${order.id}" data-items='${JSON.stringify(order.items || [])}' style="
                         width: 100%;
@@ -651,11 +659,15 @@
                         transition: all 0.3s ease;
                       ">✓ Xác Nhận Đã Nhận Hàng</button>
                     </div>
-                  ` : order.status === "completed" ? `
+                  `
+                      : order.status === "completed"
+                        ? `
                     <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--color-border-subtle);">
                       <div style="margin-bottom: 20px;">
                         <p style="color: var(--color-text-primary); font-weight: 600; margin-bottom: 12px;">📝 Đánh Giá Sản Phẩm</p>
-                        ${(order.items || []).map((item, idx) => `
+                        ${(order.items || [])
+                          .map(
+                            (item, idx) => `
                           <div class="product-review-form" data-product-id="${item.id}" data-product-name="${item.name}" data-order-id="${order.id}" style="
                             background: var(--color-surface-l2);
                             padding: 12px;
@@ -669,7 +681,9 @@
                             </div>
 
                             <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                              ${[1, 2, 3, 4, 5].map(star => `
+                              ${[1, 2, 3, 4, 5]
+                                .map(
+                                  (star) => `
                                 <button class="star-btn-product" data-rating="${star}" style="
                                   background: none;
                                   border: none;
@@ -678,7 +692,9 @@
                                   opacity: 0.5;
                                   transition: opacity 0.2s;
                                 ">⭐</button>
-                              `).join('')}
+                              `,
+                                )
+                                .join("")}
                             </div>
 
                             <textarea class="product-comment" placeholder="Chia sẻ trải nghiệm của bạn..." style="
@@ -708,10 +724,14 @@
                               transition: all 0.3s ease;
                             ">Gửi Đánh Giá</button>
                           </div>
-                        `).join('')}
+                        `,
+                          )
+                          .join("")}
                       </div>
                     </div>
-                  ` : ""}
+                  `
+                        : ""
+                  }
                 </div>
               </div>
             </div>
@@ -757,18 +777,21 @@
 
             try {
               // Import firebase modules
-              const { updateDoc, doc, serverTimestamp, Timestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-              const { db, auth } = await import("../js/services/firebase.service.js");
+              const { updateDoc, doc, serverTimestamp, Timestamp } =
+                await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+              const { db, auth } =
+                await import("../js/services/firebase.service.js");
 
               // Update order status to completed
               const orderRef = doc(db, "orders", orderId);
               await updateDoc(orderRef, {
                 status: "completed",
-                completedAt: serverTimestamp()
+                completedAt: serverTimestamp(),
               });
 
               // Create notification for admin
-              const { addDoc, collection } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+              const { addDoc, collection } =
+                await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
               await addDoc(collection(db, "notifications"), {
                 type: "order",
                 recipient: "admin",
@@ -777,10 +800,13 @@
                 orderId,
                 userId: auth.currentUser.uid,
                 createdAt: serverTimestamp(),
-                read: false
+                read: false,
               });
 
-              showToast("✓ Cảm ơn bạn đã xác nhận! Vui lòng đánh giá sản phẩm", "success");
+              showToast(
+                "✓ Cảm ơn bạn đã xác nhận! Vui lòng đánh giá sản phẩm",
+                "success",
+              );
               renderOrders(state);
             } catch (error) {
               showToast("❌ Lỗi: " + error.message, "error");
@@ -800,21 +826,21 @@
               e.stopPropagation();
               selectedRating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+                s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
               });
             });
 
             star.addEventListener("mouseenter", (e) => {
               const rating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+                s.style.opacity = idx + 1 <= rating ? "0.8" : "0.5";
               });
             });
           });
 
           ratingDiv.addEventListener("mouseleave", () => {
             stars.forEach((s, idx) => {
-              s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
             });
           });
 
@@ -833,20 +859,20 @@
               e.stopPropagation();
               selectedRating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+                s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
               });
             });
 
             star.addEventListener("mouseenter", (e) => {
               const rating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+                s.style.opacity = idx + 1 <= rating ? "0.8" : "0.5";
               });
             });
 
             star.addEventListener("mouseleave", () => {
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+                s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
               });
             });
           });
@@ -878,7 +904,8 @@
             submitBtn.textContent = "⏳ Gửi...";
 
             try {
-              const { saveReview } = await import("../js/services/firebase.service.js");
+              const { saveReview } =
+                await import("../js/services/firebase.service.js");
 
               await saveReview(productId, selectedRating, comment, orderId);
 
@@ -890,7 +917,8 @@
               // Show confirmation message
               const confirmMsg = document.createElement("div");
               confirmMsg.textContent = `✓ Bạn đã đánh giá "${productName}"`;
-              confirmMsg.style.cssText = "color: var(--color-success); font-weight: 600; padding: 10px; text-align: center; background: var(--color-surface-l1); border-radius: 6px; margin-bottom: 12px;";
+              confirmMsg.style.cssText =
+                "color: var(--color-success); font-weight: 600; padding: 10px; text-align: center; background: var(--color-surface-l1); border-radius: 6px; margin-bottom: 12px;";
               form.parentElement.insertBefore(confirmMsg, form);
             } catch (error) {
               showToast("❌ Lỗi: " + error.message, "error");
@@ -910,21 +938,21 @@
               e.stopPropagation();
               selectedRating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+                s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
               });
             });
 
             star.addEventListener("mouseenter", (e) => {
               const rating = parseInt(star.dataset.rating);
               stars.forEach((s, idx) => {
-                s.style.opacity = (idx + 1) <= rating ? "0.8" : "0.5";
+                s.style.opacity = idx + 1 <= rating ? "0.8" : "0.5";
               });
             });
           });
 
           ratingDiv.addEventListener("mouseleave", () => {
             stars.forEach((s, idx) => {
-              s.style.opacity = (idx + 1) <= selectedRating ? "1" : "0.5";
+              s.style.opacity = idx + 1 <= selectedRating ? "1" : "0.5";
             });
           });
 
@@ -942,13 +970,18 @@
           });
         });
       }
-function showToast(message, type = "info") {
+      function showToast(message, type = "info") {
         // Fix lỗi dấu gạch chéo ngược (\) khiến trình duyệt báo đỏ
         const toast = document.createElement("div");
         toast.textContent = message;
-        
+
         // Màu sắc dựa trên type
-        const bgColor = type === "success" ? "#4caf50" : type === "error" ? "#ff4d4f" : "#2196f3";
+        const bgColor =
+          type === "success"
+            ? "#4caf50"
+            : type === "error"
+              ? "#ff4d4f"
+              : "#2196f3";
 
         toast.style.cssText = `
           position: fixed;
@@ -977,7 +1010,7 @@ function showToast(message, type = "info") {
         }
 
         document.body.appendChild(toast);
-        
+
         // Tự động xóa sau 3s
         setTimeout(() => {
           toast.style.animation = "slideIn 0.3s ease reverse forwards";
@@ -986,7 +1019,7 @@ function showToast(message, type = "info") {
       }
 
       // --- LOGIC KHỞI CHẠY ---
-      
+
       // Render lần đầu
       const initialState = store.getState();
       renderOrders(initialState);

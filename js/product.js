@@ -1,19 +1,17 @@
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "./services/firebase.service.js";
 import store from "./store/index.js";
-import { renderNavbar } from "./components/navbar.js";
-import { renderCart } from "./components/cart.js";
+import { initNavbar } from "./components/navbar.js";
+import { initCart } from "./components/cart.js";
 import { initializeAuth } from "./core/auth-init.js";
 import { ACTION_TYPES } from "./store/actions.js";
 
 initializeAuth();
-
-// Re-render nav + cart when state changes
-store.subscribe(() => {
-  const state = store.getState();
-  renderNavbar(state);
-  renderCart(state);
-});
+initNavbar();
+initCart();
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
@@ -153,8 +151,7 @@ function formatCurrency(value) {
   return value.toLocaleString("vi-VN") + "đ";
 }
 
-renderNavbar(store.getState());
-renderCart(store.getState());
+// Navbar and cart are already initialized via initNavbar() and initCart() above
 
 if (!id) {
   renderProductDetail(null);

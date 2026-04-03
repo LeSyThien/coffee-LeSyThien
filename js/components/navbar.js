@@ -32,8 +32,8 @@ function animateBalance(el, start, end) {
 }
 
 export function renderNavbar(state) {
-  const navElement = document.getElementById("navbar");
-  if (!navElement) return;
+  const navRoot = document.getElementById("navbar-root");
+  if (!navRoot) return;
 
   const user = state.user?.data;
   const currentBalance = user ? Number(user.balance || 0) : 0;
@@ -48,7 +48,7 @@ export function renderNavbar(state) {
     const diff = currentBalance - prevBalance;
     showMoneyAnimation(diff);
 
-    const balanceEl = document.getElementById("balance");
+    const balanceEl = document.getElementById("balance-display");
     if (balanceEl) {
       animateBalance(balanceEl, prevBalance, currentBalance);
       balanceEl.classList.add("balance-pop");
@@ -60,10 +60,10 @@ export function renderNavbar(state) {
   const avatar = user && user.avatar ? user.avatar : null;
   const isAdmin = user && user.role === "admin";
 
-  const existingInput = document.getElementById("search-input");
+  const existingInput = document.getElementById("nav-search");
   const prevSearchValue = existingInput?.value || state.ui?.searchQuery || "";
   const isSearchFocused =
-    document.activeElement && document.activeElement.id === "search-input";
+    document.activeElement && document.activeElement.id === "nav-search";
   const cursorPos = existingInput?.selectionStart || 0;
 
   const avatarHTML = user
@@ -76,67 +76,82 @@ export function renderNavbar(state) {
   const products = state.products?.list || [];
 
   // Render HTML
-  navElement.innerHTML = `
-    <div>
+  navRoot.innerHTML = `
+    <nav class="navbar">
       <div class="nav-left">
-        <a href="index.html" style="font-size: 20px; font-weight: 600; color: #c89b3c; text-decoration: none; transition: all 0.3s ease;">☕ Coffee</a>
+        <a href="index.html" class="navbar-brand">☕ Coffee</a>
       </div>
 
       <div class="nav-center" style="display: flex; gap: 2rem; font-size: 14px;">
         <a href="index.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Home</a>
-        <a href="index.html#products" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Menu</a>
+        <a href="products.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Menu</a>
         ${user ? `<a href="orders.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Orders</a>` : ""}
+        <a href="about.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Our Story</a>
+        <a href="contact.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Contact</a>
       </div>
 
       <div class="nav-center-right" style="display: flex; align-items: center; position: relative;">
-        <input type="text" id="search-input" placeholder="Search coffee..." 
+        <input type="text" id="nav-search" placeholder="Search coffee..." 
                value="${prevSearchValue}"
                class="search-input"
                style="width: 240px; height: 38px; background: rgba(42, 42, 42, 0.8); border-radius: 20px; padding: 0 16px; color: #fff; border: 1.5px solid rgba(200, 155, 60, 0.3); outline: none; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.3s ease;">
-        <div id="search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: rgba(26, 26, 28, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(200, 155, 60, 0.2); border-radius: 12px; margin-top: 8px; max-height: 300px; overflow-y: auto; z-index: 1001; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
+        <div id="nav-search-suggestions" class="search-suggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: rgba(26, 26, 28, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(200, 155, 60, 0.2); border-radius: 12px; margin-top: 8px; max-height: 300px; overflow-y: auto; z-index: 1001; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
         </div>
       </div>
 
       <div class="nav-right" style="display: flex; align-items: center; gap: 2rem;">
-        ${user ? `<div id="balance" class="balance-badge" style="font-size: 14px; color: #fff; background: rgba(42, 42, 42, 0.8); padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(200, 155, 60, 0.3); transition: all 0.3s ease; backdrop-filter: blur(10px);">💰 ${balance}đ</div>` : ""}
+        ${user ? `<div id="balance-display" class="balance-badge" style="font-size: 14px; color: #fff; background: rgba(42, 42, 42, 0.8); padding: 8px 14px; border-radius: 10px; cursor: pointer; border: 1px solid rgba(200, 155, 60, 0.3); transition: all 0.3s ease; backdrop-filter: blur(10px);">💰 ${balance}đ</div>` : ""}
         
         <button id="cart-btn" class="cart-btn" style="position: relative; background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; transition: all 0.3s ease; padding: 4px;">
           🛒
           ${cartCount > 0 ? `<span style="position: absolute; top: -8px; right: -8px; background: #ff9800; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px; font-weight: bold;">${cartCount}</span>` : ""}
         </button>
         
-        <div id="avatar-container" class="avatar-container" style="cursor: pointer; position: relative;">
-          ${avatarHTML}
-          <div id="profile-dropdown" style="display: none; position: absolute; top: 50px; right: 0; width: 200px; background: rgba(42, 42, 42, 0.95); backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; padding: 16px; animation: fadeIn 0.3s; border: 1px solid rgba(200, 155, 60, 0.2);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div id="avatar-btn" class="avatar-container" style="cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px;">
             ${
               user
-                ? `
-              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-                ${avatarHTML}
-                <div style="color: #fff; font-weight: 600;">${user.name}</div>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
-                <a href="orders.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">📦 My Orders</a>
-                <a href="deposit.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">💰 Deposit</a>
-                ${isAdmin ? `<a href="admin.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">⚙️ Admin Dashboard</a>` : ""}
-              </div>
-            `
-                : `
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
-                <a href="login.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">🔐 Login</a>
-              </div>
-            `
+                ? `<a href="vip.html" class="vip-badge" title="View VIP Benefits" style="text-decoration: none; ${
+                    user.vipLevel && user.vipLevel > 0
+                      ? "background: linear-gradient(45deg, #d4af37, #f9e29c, #d4af37); background-size: 200% auto; animation: shine 3s linear infinite; box-shadow: 0 0 12px rgba(212, 175, 55, 0.4); color: #000;"
+                      : "background: rgba(100, 100, 100, 0.5); color: #ccc;"
+                  }">👑 ${user.vipLevel && user.vipLevel > 0 ? `V${user.vipLevel}` : "Member"}</a>`
+                : `<a href="login.html" class="vip-badge" title="Login to join VIP" style="text-decoration: none; background: rgba(100, 100, 100, 0.5); color: #ccc;">👑 Login</a>`
             }
+            ${avatarHTML}
+            <div id="profile-dropdown" style="display: none; position: absolute; top: 50px; right: 0; width: 200px; background: rgba(42, 42, 42, 0.95); backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; padding: 16px; animation: fadeIn 0.3s; border: 1px solid rgba(200, 155, 60, 0.2);">
+              ${
+                user
+                  ? `
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                  ${avatarHTML}
+                  <div style="color: #fff; font-weight: 600;">${user.name}</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+                  <a href="orders.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">📦 My Orders</a>
+                  <a href="deposit.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">💰 Deposit</a>
+                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="vip.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">👑 VIP Club</a>` : ""}
+                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="vip-products.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">✨ VIP Store</a>` : ""}
+                  ${isAdmin ? `<a href="admin.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">⚙️ Admin Dashboard</a>` : ""}
+                </div>
+              `
+                  : `
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+                  <a href="login.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">🔐 Login</a>
+                </div>
+              `
+              }
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   `;
 
   // Add hover effects for links
-  const navLinks = navElement.querySelectorAll(".nav-link");
+  const navLinks = navRoot.querySelectorAll(".nav-link");
   navLinks.forEach((link) => {
     link.addEventListener("mouseenter", () => {
       link.style.color = "#c89b3c";
@@ -149,7 +164,7 @@ export function renderNavbar(state) {
   });
 
   // Logo animation (bounce + glow)
-  const logoLink = navElement.querySelector(".nav-left a");
+  const logoLink = navRoot.querySelector(".navbar-brand");
   if (logoLink) {
     logoLink.addEventListener("mouseenter", () => {
       logoLink.style.animation = "logoBounce 0.6s ease-in-out";
@@ -163,8 +178,8 @@ export function renderNavbar(state) {
   }
 
   // Search input with autocomplete
-  const searchInput = navElement.querySelector("#search-input");
-  const searchSuggestions = navElement.querySelector("#search-suggestions");
+  const searchInput = navRoot.querySelector("#nav-search");
+  const searchSuggestions = navRoot.querySelector("#nav-search-suggestions");
 
   if (searchInput) {
     searchInput.value = prevSearchValue;
@@ -310,8 +325,27 @@ export function renderNavbar(state) {
   }
 
   // Cart button hover effect
-  const cartBtn = navElement.querySelector("#cart-btn");
+  const cartBtn = navRoot.querySelector("#cart-btn");
   if (cartBtn) {
+    // Store previous cart count for detecting cart item additions
+    const prevCartCount = store
+      .getState()
+      .cart.items.reduce((acc, item) => acc + item.quantity, 0);
+
+    // Trigger pulse animation when cart items change
+    store.subscribe(() => {
+      const newCartCount = store
+        .getState()
+        .cart.items.reduce((acc, item) => acc + item.quantity, 0);
+      if (newCartCount > prevCartCount) {
+        // Add pulse class for animation
+        cartBtn.classList.add("pulse");
+        setTimeout(() => {
+          cartBtn.classList.remove("pulse");
+        }, 600);
+      }
+    });
+
     cartBtn.addEventListener("mouseenter", () => {
       cartBtn.style.transform = "scale(1.2) rotate(10deg)";
     });
@@ -325,7 +359,7 @@ export function renderNavbar(state) {
 
   // Balance click to deposit and hover effect
   if (user) {
-    const balanceEl = navElement.querySelector("#balance");
+    const balanceEl = navRoot.querySelector("#balance-display");
     if (balanceEl) {
       balanceEl.addEventListener("mouseenter", () => {
         balanceEl.style.borderColor = "rgba(200, 155, 60, 0.8)";
@@ -343,9 +377,12 @@ export function renderNavbar(state) {
     }
   }
 
+  // Logout is NOW ONLY on profile.html - removed from navbar dropdown
+  // (to prevent misclicks on landing page navbar)
+
   // Avatar with hover effects
-  const avatarContainer = navElement.querySelector("#avatar-container");
-  const dropdown = navElement.querySelector("#profile-dropdown");
+  const avatarContainer = navRoot.querySelector("#avatar-btn");
+  const dropdown = navRoot.querySelector("#profile-dropdown");
   const avatarImg = avatarContainer.querySelector(
     ".navbar-avatar-fallback, .navbar-avatar-guest, .navbar-avatar",
   );
@@ -392,5 +429,13 @@ export function renderNavbar(state) {
       isDropdownOpen = false;
       if (dropdown) dropdown.style.display = "none";
     }
+  });
+}
+
+export function initNavbar() {
+  renderNavbar(store.getState());
+
+  store.subscribe(() => {
+    renderNavbar(store.getState());
   });
 }

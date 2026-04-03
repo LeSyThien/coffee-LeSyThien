@@ -44,13 +44,15 @@ service cloud.firestore {
         && request.resource.data.total >= 0
         && request.resource.data.keys().hasAll(["userId", "items", "total", "status", "createdAt"]);
 
-      allow update: if isAdmin() || (
-        isOwner(resource.data.userId) &&
-        request.resource.data.diff(resource.data).changedKeys().hasOnly(["status", "completedAt"]) &&
-        request.resource.data.status == "completed" &&
-        remainsUnchanged("total") &&
-        remainsUnchanged("userId")
-      );
+      allow update: if isAdmin()
+        // Admin can change status: pending → shipping → completed/cancelled/rejected
+        || (
+          isOwner(resource.data.userId) &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(["status", "completedAt"]) &&
+          request.resource.data.status == "completed" &&
+          remainsUnchanged("total") &&
+          remainsUnchanged("userId")
+        );
 
       allow delete: if isAdmin();
     }
@@ -73,7 +75,8 @@ service cloud.firestore {
         && isOwner(request.resource.data.userId)
         && request.resource.data.rating >= 1 
         && request.resource.data.rating <= 5;
-      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow update: if (isOwner(resource.data.userId) && request.resource.data.diff(resource.data).changedKeys().hasOnly(["comment", "rating"]))
+        || (isAdmin() && request.resource.data.diff(resource.data).changedKeys().hasOnly(["adminReply", "adminReplyAt"]));
       allow delete: if isAdmin();
     }
 
@@ -92,6 +95,24 @@ service cloud.firestore {
       allow read: if isAuth() && (isOwner(resource.data.userId) || isAdmin());
       allow create: if isAuth() && isOwner(request.resource.data.userId);
       allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- CARTS (Cloud Sync) ---
+    match /carts/{userId} {
+      // Owner can read their own cart anytime
+      allow read: if isOwner(userId);
+      
+      // Owner can create their own cart
+      allow create: if isOwner(userId) 
+        && request.resource.data.keys().hasAll(["items", "total", "updatedAt"]);
+      
+      // Owner can update their own cart (unlimited item changes, total updates)
+      // Admin can also manage carts if needed
+      allow update: if (isOwner(userId) || isAdmin())
+        && request.resource.data.keys().hasAll(["items", "total", "updatedAt"]);
+      
+      // Only admin can delete (for data cleanup)
       allow delete: if isAdmin();
     }
 

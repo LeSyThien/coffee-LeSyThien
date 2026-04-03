@@ -17,6 +17,9 @@ import {
   collection,
   query,
   where,
+  runTransaction,
+  serverTimestamp,
+  initializeFirestore,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import {
   getFunctions,
@@ -34,11 +37,131 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+initializeFirestore(app, { experimentalForceLongPolling: true });
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, "asia-southeast1"); // Set region matching your Firebase project
 export { httpsCallable }; // ✅ Export for Cloud Function calls
 const provider = new GoogleAuthProvider();
+
+// ===== LOYALTY PROGRAM: Member Rank Calculation =====
+/**
+ * Calculate member rank based on accumulated spending
+ * Returns: { rank: number, title: string, discount: number, dailyGift: number, nextThreshold: number, progress: number }
+ */
+export function calculateMemberRank(totalSpent) {
+  const ranks = [
+    {
+      tier: 1,
+      min: 1_000_000,
+      max: 1_000_000,
+      title: "VIP 1",
+      discount: 1,
+      dailyGift: 1_000,
+    },
+    {
+      tier: 2,
+      min: 1_000_000,
+      max: 5_000_000,
+      title: "VIP 2",
+      discount: 2,
+      dailyGift: 2_000,
+    },
+    {
+      tier: 3,
+      min: 5_000_000,
+      max: 10_000_000,
+      title: "VIP 3",
+      discount: 3,
+      dailyGift: 5_000,
+    },
+    {
+      tier: 4,
+      min: 10_000_000,
+      max: 20_000_000,
+      title: "VIP 4",
+      discount: 4,
+      dailyGift: 8_000,
+    },
+    {
+      tier: 5,
+      min: 20_000_000,
+      max: 40_000_000,
+      title: "VIP 5",
+      discount: 5,
+      dailyGift: 12_000,
+    },
+    {
+      tier: 6,
+      min: 40_000_000,
+      max: 80_000_000,
+      title: "VIP 6",
+      discount: 6,
+      dailyGift: 18_000,
+    },
+    {
+      tier: 7,
+      min: 80_000_000,
+      max: 160_000_000,
+      title: "VIP 7",
+      discount: 7,
+      dailyGift: 28_000,
+    },
+    {
+      tier: 8,
+      min: 160_000_000,
+      max: 320_000_000,
+      title: "VIP 8",
+      discount: 8,
+      dailyGift: 40_000,
+    },
+    {
+      tier: 9,
+      min: 320_000_000,
+      max: 500_000_000,
+      title: "VIP 9",
+      discount: 9,
+      dailyGift: 60_000,
+    },
+    {
+      tier: 10,
+      min: 500_000_000,
+      max: Infinity,
+      title: "VIP 10",
+      discount: 10,
+      dailyGift: 100_000,
+    },
+  ];
+
+  // Find current rank
+  let currentRank = ranks[0];
+  for (let i = ranks.length - 1; i >= 0; i--) {
+    if (totalSpent >= ranks[i].min) {
+      currentRank = ranks[i];
+      break;
+    }
+  }
+
+  // Find next rank
+  const nextRank = ranks.find((r) => r.tier === currentRank.tier + 1);
+
+  // Calculate progress to next rank (0-100%)
+  let progress = 100;
+  if (nextRank) {
+    const spent = totalSpent - currentRank.min;
+    const needed = nextRank.min - currentRank.min;
+    progress = Math.min(100, Math.round((spent / needed) * 100));
+  }
+
+  return {
+    rank: currentRank.tier,
+    title: currentRank.title,
+    discount: currentRank.discount,
+    dailyGift: currentRank.dailyGift,
+    nextThreshold: nextRank ? nextRank.min : Infinity,
+    progress,
+  };
+}
 
 // 1. Login với Google
 export const loginWithGoogle = async () => {
@@ -60,6 +183,7 @@ export const loginWithGoogle = async () => {
           name: user.displayName,
           email: user.email,
           balance: 0,
+          totalSpent: 0, // Initialize loyalty program tracking
           role: "user",
           createdAt: new Date(),
         },
@@ -78,6 +202,13 @@ export const loginWithGoogle = async () => {
           name: user.displayName,
           email: user.email,
           updatedAt: new Date(),
+        });
+      }
+
+      // Ensure totalSpent field exists (for legacy users)
+      if (!existingData.totalSpent) {
+        await updateDoc(userRef, {
+          totalSpent: 0,
         });
       }
     }
@@ -136,10 +267,17 @@ export const logoutUser = async () => {
   }
 };
 
-// 3. Admin: Update order status (pending → completed/cancelled)
+// 3. Admin: Update order status (pending → shipping → completed/cancelled/rejected)
 export const updateOrderStatus = async (orderId, newStatus) => {
   // Validate status transition
-  const validStatuses = ["pending", "completed", "cancelled"];
+  const validStatuses = [
+    "pending",
+    "shipping",
+    "completed",
+    "cancelled",
+    "rejected",
+    "delivered",
+  ];
   if (!validStatuses.includes(newStatus)) {
     throw new Error("Invalid status: " + newStatus);
   }
@@ -188,6 +326,62 @@ export const updateOrderStatus = async (orderId, newStatus) => {
     return { success: true };
   } catch (error) {
     console.error("Update order status failed:", error);
+    throw error;
+  }
+};
+
+// 3.5. Admin: Cancel Order with Stock Restoration (Critical Fix)
+// When admin rejects/cancels an order, restore stock atomically
+export const cancelOrderWithStockRestore = async (orderId) => {
+  try {
+    const orderRef = doc(db, "orders", orderId);
+    const orderSnap = await getDoc(orderRef);
+
+    if (!orderSnap.exists()) {
+      throw new Error("Order not found!");
+    }
+
+    const orderData = orderSnap.data();
+    const currentStatus = orderData.status;
+
+    // Prevent cancelling already finalized orders
+    if (currentStatus === "completed" || currentStatus === "cancelled") {
+      throw new Error("Cannot cancel order that is already " + currentStatus);
+    }
+
+    // Use transaction to atomically restore stock
+    await runTransaction(db, async (tx) => {
+      // Restore stock for each item in the order
+      for (const item of orderData.items || []) {
+        const productRef = doc(db, "products", item.id || item.productId);
+        const productSnap = await tx.get(productRef);
+
+        if (productSnap.exists()) {
+          const productData = productSnap.data();
+          const currentStock = Number(productData.stock || 0);
+          const newStock = currentStock + (item.quantity || 0);
+
+          // Update product stock (restore the quantity)
+          tx.update(productRef, {
+            stock: newStock,
+            available: true, // Product is available again after stock restored
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // Update order status to cancelled
+      tx.update(orderRef, {
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    console.log("📦 Order Cancelled & Stock Restored");
+    return { success: true };
+  } catch (error) {
+    console.error("Cancel order with stock restore failed:", error);
     throw error;
   }
 };
@@ -493,5 +687,112 @@ export const getAllReviews = async () => {
   } catch (error) {
     console.error("Get all reviews failed:", error);
     return [];
+  }
+};
+
+// ===== VIP DAILY GIFT SYSTEM =====
+/**
+ * Claim daily VIP gift - rewards user with gold based on their VIP level
+ * Can only be claimed once every 24 hours
+ * @param {string} userId - The user ID
+ * @returns {object} { success: boolean, amount: number, message: string, nextClaimTime: Date }
+ */
+export const claimDailyVIPGift = async (userId) => {
+  try {
+    if (!userId) throw new Error("User ID is required");
+
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      throw new Error("User not found");
+    }
+
+    const userData = userSnap.data();
+    const totalSpent = userData.totalSpent || 0;
+    const lastClaimedGift = userData.lastClaimedGift
+      ? new Date(
+          userData.lastClaimedGift.toDate?.() || userData.lastClaimedGift,
+        )
+      : new Date(0);
+
+    // Check if 24 hours have passed since last claim
+    const now = new Date();
+    const timeSinceLastClaim = now - lastClaimedGift;
+    const hoursElapsed = timeSinceLastClaim / (1000 * 60 * 60);
+
+    if (hoursElapsed < 24) {
+      const hoursRemaining = 24 - hoursElapsed;
+      const nextClaimTime = new Date(
+        now.getTime() + hoursRemaining * 60 * 60 * 1000,
+      );
+      return {
+        success: false,
+        amount: 0,
+        message: `You can claim again in ${Math.ceil(hoursRemaining)} hours`,
+        nextClaimTime,
+      };
+    }
+
+    // Calculate VIP level and gift amount
+    const vipInfo = calculateMemberRank(totalSpent);
+    const giftAmount = vipInfo.dailyGift || 1000;
+
+    // Update user balance and lastClaimedGift timestamp
+    await updateDoc(userRef, {
+      balance: (userData.balance || 0) + giftAmount,
+      lastClaimedGift: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      amount: giftAmount,
+      message: `🎁 Claimed ${giftAmount.toLocaleString("vi-VN")}đ daily gift!`,
+      nextClaimTime: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    };
+  } catch (error) {
+    console.error("Claim daily VIP gift failed:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get VIP info for a user
+ * @param {string} userId - The user ID
+ * @returns {object} VIP rank info with discount, daily gift, etc.
+ */
+export const getUserVIPInfo = async (userId) => {
+  try {
+    if (!userId) throw new Error("User ID is required");
+
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      throw new Error("User not found");
+    }
+
+    const userData = userSnap.data();
+    const vipInfo = calculateMemberRank(userData.totalSpent || 0);
+    const lastClaimedGift = userData.lastClaimedGift
+      ? new Date(
+          userData.lastClaimedGift.toDate?.() || userData.lastClaimedGift,
+        )
+      : new Date(0);
+
+    const now = new Date();
+    const timeSinceLastClaim = now - lastClaimedGift;
+    const canClaimGift = timeSinceLastClaim / (1000 * 60 * 60) >= 24;
+
+    return {
+      ...vipInfo,
+      totalSpent: userData.totalSpent || 0,
+      canClaimGift,
+      lastClaimedGift,
+    };
+  } catch (error) {
+    console.error("Get user VIP info failed:", error);
+    throw error;
   }
 };

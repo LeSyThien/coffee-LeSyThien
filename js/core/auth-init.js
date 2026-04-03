@@ -22,16 +22,96 @@ import {
   collection,
   where,
   orderBy,
+  setDoc,
+  getDoc,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import store from "../store/index.js";
 import { ACTION_TYPES } from "../store/actions.js";
+import { renderCart } from "../components/cart.js";
 
 // Track unsubscribe functions to clean up listeners
 let unsubscribeUserSnapshot = null;
 let unsubscribeOrdersSnapshot = null;
 let unsubscribeProductsSnapshot = null;
+let unsubscribeCartSnapshot = null;
 let unsubscribeAuthStateChanged = null;
 let isInitialized = false;
+let isCloudCartUpdate = false;
+let lastCartSnapshot = "";
+
+async function syncCartToFirestore(userId, cart) {
+  try {
+    if (!userId) return;
+    const cartRef = doc(db, "carts", userId);
+    await setDoc(cartRef, {
+      items: Array.isArray(cart.items) ? cart.items : [],
+      total: Number(cart.total) || 0,
+      updatedAt: serverTimestamp(),
+    });
+    renderCart(); // Force re-render cart UI after sync
+  } catch (error) {
+    console.error("☁️ Cart sync failed:", error);
+  }
+}
+
+async function ensureCartCloudState(user) {
+  if (!user) return;
+  const userId = user.uid;
+  const localCart = store.getState().cart;
+  const cartRef = doc(db, "carts", userId);
+
+  try {
+    const cartDoc = await getDoc(cartRef);
+
+    if (!cartDoc.exists() || !cartDoc.data()?.items?.length) {
+      await setDoc(cartRef, {
+        items: Array.isArray(localCart.items) ? localCart.items : [],
+        total: Number(localCart.total) || 0,
+        updatedAt: serverTimestamp(),
+      });
+      renderCart(); // Force re-render after initial sync
+      return;
+    }
+
+    const firestoreCart = cartDoc.data();
+    const cartPayload = {
+      items: Array.isArray(firestoreCart.items) ? firestoreCart.items : [],
+      total: Number(firestoreCart.total) || 0,
+    };
+
+    const currentCart = store.getState().cart;
+    const hasChanged =
+      JSON.stringify(currentCart) !== JSON.stringify(cartPayload);
+
+    if (hasChanged) {
+      store.dispatch({ type: ACTION_TYPES.SET_CART, payload: cartPayload });
+      renderCart(); // Force re-render after fetching from Firestore
+    }
+
+    // Subscribe to remote cart changes for real-time multi-device sync
+    if (unsubscribeCartSnapshot) unsubscribeCartSnapshot();
+    unsubscribeCartSnapshot = onSnapshot(cartRef, (snapshot) => {
+      const remoteCart = snapshot.data();
+      if (!remoteCart) return;
+
+      const payload = {
+        items: Array.isArray(remoteCart.items) ? remoteCart.items : [],
+        total: Number(remoteCart.total) || 0,
+      };
+
+      const fingerprint = JSON.stringify(payload);
+      if (fingerprint === lastCartSnapshot) return;
+
+      lastCartSnapshot = fingerprint;
+      isCloudCartUpdate = true;
+      store.dispatch({ type: ACTION_TYPES.SET_CART, payload });
+      renderCart(); // Re-render when remote cart updates
+    });
+  } catch (error) {
+    console.error("☁️ Cart initialize sync failed:", error);
+  }
+}
 
 /**
  * Initialize Firebase Auth - restores session and sets up realtime listeners
@@ -40,10 +120,23 @@ let isInitialized = false;
 export function initializeAuth() {
   // Prevent duplicate initialization
   if (isInitialized) {
-    console.log("⚠️ Auth already initialized, skipping");
     return;
   }
   isInitialized = true;
+
+  // ⚡ SPEED: Check sessionStorage for quick auth state
+  const wasLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+  const storedUserId = sessionStorage.getItem("userId");
+
+  // If we detect the user was logged in, set UI state immediately
+  if (wasLoggedIn && storedUserId) {
+    // This prevents the loading spinner from showing for returning users
+    // The actual data will be synced when onAuthStateChanged fires
+    store.dispatch({
+      type: ACTION_TYPES.SET_AUTH_READY,
+      payload: true,
+    });
+  }
 
   // Set up auth state listener (only set up once)
   unsubscribeAuthStateChanged = onAuthStateChanged(auth, (user) => {
@@ -62,11 +155,16 @@ export function initializeAuth() {
     }
 
     // Always subscribe to products (available to all visitors)
+    store.dispatch({
+      type: ACTION_TYPES.SET_PRODUCTS_LOADING,
+      payload: true,
+    });
+
     unsubscribeProductsSnapshot = onSnapshot(
       query(
         collection(db, "products"),
         where("available", "==", true),
-        orderBy("createdAt", "desc"),
+        where("isVIPOnly", "==", false),
       ),
       (querySnap) => {
         const productsList = [];
@@ -83,12 +181,14 @@ export function initializeAuth() {
       },
       (error) => {
         console.error("❌ Products listener error:", error);
+        store.dispatch({
+          type: ACTION_TYPES.SET_PRODUCTS_LOADING,
+          payload: false,
+        });
       },
     );
 
     if (user) {
-      console.log("✅ Auth restored:", user.email);
-
       // 1. Subscribe to user data updates (realtime)
       // ⚠️ CRITICAL: Set isAuthReady INSIDE the user snapshot callback,
       // not before it, to prevent race condition where admin.js checks
@@ -99,9 +199,14 @@ export function initializeAuth() {
           if (docSnap.exists()) {
             const userData = docSnap.data();
 
-            // Check for admin custom claim
+            // Check for admin custom claim with email fallback
             const idTokenResult = await user.getIdTokenResult();
-            const isAdmin = idTokenResult.claims.admin === true;
+            let isAdmin = idTokenResult.claims.admin === true;
+
+            // Fallback: If no admin claim, check if email matches admin email
+            if (!isAdmin && user.email === "sythien09@gmail.com") {
+              isAdmin = true;
+            }
 
             // Add admin flag to user data for client-side checks
             const userDataWithAdmin = { ...userData, isAdmin };
@@ -110,9 +215,11 @@ export function initializeAuth() {
               type: ACTION_TYPES.SET_USER,
               payload: userDataWithAdmin,
             });
-            console.log("✅ User data synced");
-            console.log("🔥 UID:", user.uid);
-            console.log("🔥 FIRESTORE USER:", userDataWithAdmin);
+
+            // ⚡ SPEED: Store login state in sessionStorage for instant page loads next time
+            sessionStorage.setItem("isLoggedIn", "true");
+            sessionStorage.setItem("userId", user.uid);
+            sessionStorage.setItem("userEmail", user.email || "");
 
             // 2. Subscribe to orders (realtime) with admin/user filters
             const ordersQuery = isAdmin
@@ -143,6 +250,25 @@ export function initializeAuth() {
               },
             );
 
+            // Cloud-cart sync: compare localStorage cart with Firestore and keep in sync
+            ensureCartCloudState(user);
+
+            // Store subscriber that writes local actions back to Firestore cart
+            store.subscribe(() => {
+              if (!auth.currentUser) return;
+              if (isCloudCartUpdate) {
+                isCloudCartUpdate = false;
+                return;
+              }
+
+              const currentCart = store.getState().cart;
+              const fingerprint = JSON.stringify(currentCart);
+              if (fingerprint === lastCartSnapshot) return;
+
+              lastCartSnapshot = fingerprint;
+              syncCartToFirestore(auth.currentUser.uid, currentCart);
+            });
+
             // ✅ Mark auth as ready AFTER user data is available
             // This ensures admin.js won't redirect before userData loads
             store.dispatch({
@@ -161,8 +287,6 @@ export function initializeAuth() {
         },
       );
     } else {
-      console.log("❌ Not authenticated");
-
       // Clear state
       store.dispatch({
         type: ACTION_TYPES.SET_USER,
@@ -172,6 +296,11 @@ export function initializeAuth() {
         type: ACTION_TYPES.SET_ORDERS,
         payload: [],
       });
+
+      // ⚡ SPEED: Clear sessionStorage when user logs out
+      sessionStorage.removeItem("isLoggedIn");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("userEmail");
 
       // ✅ Mark auth as ready when user is NOT authenticated
       store.dispatch({
@@ -197,6 +326,10 @@ export function cleanupAuth() {
   if (unsubscribeProductsSnapshot) {
     unsubscribeProductsSnapshot();
     unsubscribeProductsSnapshot = null;
+  }
+  if (unsubscribeCartSnapshot) {
+    unsubscribeCartSnapshot();
+    unsubscribeCartSnapshot = null;
   }
   if (unsubscribeAuthStateChanged) {
     unsubscribeAuthStateChanged();

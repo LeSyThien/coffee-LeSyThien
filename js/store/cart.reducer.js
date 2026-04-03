@@ -53,6 +53,14 @@ export function cartReducer(state = initialState, action) {
     case ACTION_TYPES.CLEAR_CART:
       return initialState;
 
+    case ACTION_TYPES.SET_CART: {
+      const { items, total } = action.payload || { items: [], total: 0 };
+      return {
+        items: Array.isArray(items) ? items : [],
+        total: Number(total) || 0,
+      };
+    }
+
     default:
       return state;
   }
