@@ -16,10 +16,10 @@ import {
   onAuthStateChanged,
   getIdTokenResult,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import store from "../js/store/index.js";
-import { renderNavbar } from "../js/components/navbar.js";
-import { renderCart } from "../js/components/cart.js";
-import { initializeAuth } from "../js/core/auth-init.js";
+import store from "../store/index.js";
+import { renderNavbar } from "../components/navbar.js";
+import { renderCart } from "../components/cart.js";
+import { initializeAuth } from "../core/auth-init.js";
 import {
   auth,
   db,
@@ -30,14 +30,15 @@ import {
   deleteProduct,
   toggleProductAvailability,
   toggleShowOnHome,
+  toggleVipStore,
   logoutUser,
-} from "../js/services/firebase.service.js";
+} from "../services/firebase.service.js";
 import {
   setUserRole,
   getAllUsers,
   promoteToAdmin,
   demoteToUser,
-} from "../js/services/role.service.js";
+} from "../services/role.service.js";
 
 // ❌ DEPRECATED - Cloud Functions (commented out until Blaze plan enabled)
 // import { functions, httpsCallable } from "../js/services/firebase.service.js";
@@ -401,6 +402,7 @@ function renderProductsTable(products) {
       <div class="row-actions">
         <button class="action-btn edit-btn" data-id="${p.id}" title="Edit" data-tooltip="Edit product">✏️</button>
         <button class="action-btn toggle-show-home-btn" data-id="${p.id}" title="Toggle Show on Home" style="color: ${p.showOnHome ? "#c89b3c" : "#666"}; transition: color 0.3s ease;">🏠</button>
+        <button class="action-btn toggle-exclusive-vip-btn" data-id="${p.id}" title="Toggle Exclusive VIP" style="color: ${p.isExclusiveVIP ? "#d4af37" : "#888"}; transition: color 0.3s ease;">👑</button>
         <button class="action-btn toggle-availability-btn" data-id="${p.id}" title="Toggle availability" data-tooltip="Toggle availability">
           ${p.available ? "🔒" : "🔓"}
         </button>
@@ -450,6 +452,31 @@ function renderProductsTable(products) {
         );
       } catch (error) {
         showToast("Failed to toggle show on home: " + error.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+      }
+    });
+  });
+
+  container.querySelectorAll(".toggle-exclusive-vip-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const productId = btn.dataset.id;
+      const product = products.find((p) => p.id === productId);
+      if (!product) return;
+
+      btn.disabled = true;
+      btn.style.opacity = "0.5";
+      try {
+        await toggleVipStore(productId, !product.isExclusiveVIP);
+        btn.style.color = !product.isExclusiveVIP ? "#d4af37" : "#888";
+        showToast(
+          `Product "${product.name}" is now ${!product.isExclusiveVIP ? "exclusive" : "not exclusive"} to VIP Store`,
+          "success",
+        );
+      } catch (error) {
+        showToast("Failed to toggle exclusive VIP: " + error.message, "error");
       } finally {
         btn.disabled = false;
         btn.style.opacity = "1";
@@ -1861,8 +1888,19 @@ function openEditDrawer(product) {
     product.available === false ? "false" : "true";
   document.getElementById("form-show-on-home").checked =
     product.showOnHome === true;
-  document.getElementById("form-vip-store").checked =
-    product.isVIPStore === true;
+  document.getElementById("form-required-vip-level").value =
+    Number(product.requiredVipLevel) || 0;
+  document.getElementById("form-is-exclusive-vip").checked =
+    product.isExclusiveVIP === true;
+
+  console.log(
+    "Editing product:",
+    product.name,
+    "requiredVipLevel:",
+    product.requiredVipLevel,
+    "isExclusiveVIP:",
+    product.isExclusiveVIP,
+  );
 
   document.getElementById("edit-drawer").classList.add("open");
   document.getElementById("drawer-overlay").classList.add("open");
@@ -1887,7 +1925,8 @@ function closeEditDrawer() {
   document.getElementById("form-discount").value = "";
   document.getElementById("form-available").value = "true";
   document.getElementById("form-show-on-home").checked = false;
-  document.getElementById("form-vip-store").checked = false;
+  document.getElementById("form-required-vip-level").value = "";
+  document.getElementById("form-is-exclusive-vip").checked = false;
 }
 
 // ===== DELETE MODAL =====
@@ -2306,8 +2345,17 @@ function initializeAdmin() {
       document.getElementById("form-available").value === "true";
     const showOnHome =
       document.getElementById("form-show-on-home").checked === true;
-    const isVIPStore =
-      document.getElementById("form-vip-store").checked === true;
+    const requiredVipLevel =
+      parseInt(document.getElementById("form-required-vip-level").value) || 0;
+    const isExclusiveVIP =
+      document.getElementById("form-is-exclusive-vip").checked === true;
+
+    console.log(
+      "Saving product with requiredVipLevel:",
+      requiredVipLevel,
+      "isExclusiveVIP:",
+      isExclusiveVIP,
+    );
 
     if (!name || price <= 0 || stock < 0 || discount < 0 || discount > 100) {
       showToast(
@@ -2330,7 +2378,8 @@ function initializeAdmin() {
       discount,
       available,
       showOnHome,
-      isVIPStore,
+      requiredVipLevel,
+      isExclusiveVIP,
       createdAt: new Date(),
     };
 
@@ -2649,7 +2698,7 @@ function init() {
       document.body.style.display = "block";
 
       // Initialize auth (for store/state management)
-      initializeAuth();
+      await initializeAuth();
 
       // Initialize admin dashboard
       initializeAdmin();

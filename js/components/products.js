@@ -85,18 +85,17 @@ export function renderProducts(state) {
       const stockColor = Number(product.stock) <= 5 ? "#ff4757" : "#888";
 
       // Check VIP exclusivity
-      const isVIPOnly = product.isVIPOnly || false;
-      const requiredVIP = product.requiredVIP || 1;
-      const isUserVIPEligible = userVipLevel >= requiredVIP;
-      const canAddToCart = !isOutOfStock && (!isVIPOnly || isUserVIPEligible);
+      const requiredVipLevel = product.requiredVipLevel || 0;
+      const isUserVIPEligible = userVipLevel >= requiredVipLevel;
+      const canAddToCart = !isOutOfStock && isUserVIPEligible;
 
       return `
     <div class="product-card" data-id="${product.id}" ${isOutOfStock ? 'data-out-of-stock="true"' : ""}>
-      <div class="product-image-container" ${isOutOfStock || (isVIPOnly && !isUserVIPEligible) ? 'style="filter: grayscale(100%); opacity: 0.6;"' : ""}>
+      <div class="product-image-container" ${isOutOfStock || (requiredVipLevel > 0 && !isUserVIPEligible) ? 'style="filter: grayscale(100%); opacity: 0.6;"' : ""}>
         ${product.image ? `<img src="${product.image}" alt="${product.name}" class="product-image">` : `<div class="product-image" style="background: var(--color-surface-l2); display: flex; align-items: center; justify-content: center; font-size: 3rem;">☕</div>`}
       </div>
       ${discount > 0 ? `<div class="discount-badge">${discount}% OFF</div>` : ""}
-      ${isVIPOnly ? `<div class="discount-badge" style="background: linear-gradient(45deg, #d4af37, #f9e29c); color: #000;">VIP ${requiredVIP}+</div>` : ""}
+      ${requiredVipLevel > 0 ? `<div class="discount-badge" style="background: linear-gradient(45deg, #d4af37, #f9e29c); color: #000;">VIP ${requiredVipLevel}+</div>` : ""}
       <div class="product-content">
         <h3 class="product-name">${product.name}</h3>
         ${
@@ -121,13 +120,13 @@ export function renderProducts(state) {
         <div class="product-stock" style="color: ${stockColor};">Stock: ${product.stock}</div>
         <div class="product-footer">
           ${
-            isVIPOnly && !isUserVIPEligible
+            requiredVipLevel > 0 && !isUserVIPEligible
               ? `
             <button class="add-to-cart-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
-              VIP ${requiredVIP}+ Only
+              🔒 Upgrade to Buy
             </button>
             <div style="color: #d4af37; font-size: 11px; margin-top: 6px; text-align: center; font-weight: 600;">
-              Upgrade to VIP ${requiredVIP} to unlock
+              VIP ${requiredVipLevel}+ Required
             </div>
           `
               : `
@@ -156,10 +155,18 @@ export function renderProducts(state) {
       const product = filteredProducts.find((p) => p.id === productId);
       if (product && Number(product.stock) > 0) {
         // Check VIP eligibility one more time
-        const requiredVIP = product.requiredVIP || 1;
-        if (product.isVIPOnly && userVipLevel < requiredVIP) {
+        const requiredVipLevel = product.requiredVipLevel || 0;
+        console.log(
+          "Adding to cart:",
+          product.name,
+          "requiredVipLevel:",
+          requiredVipLevel,
+          "userVipLevel:",
+          userVipLevel,
+        );
+        if (requiredVipLevel > 0 && userVipLevel < requiredVipLevel) {
           toastError(
-            `❌ VIP ${requiredVIP}+ membership required for this product`,
+            `❌ VIP ${requiredVipLevel}+ membership required for this product`,
           );
           return;
         }

@@ -82,6 +82,7 @@ function createStore(reducer, preloadedState) {
     // Persist cart changes to localStorage
     if (
       action.type === "CART/ADD_TO_CART" ||
+      action.type === "CART/REMOVE_FROM_CART" ||
       action.type === "CART/UPDATE_CART" ||
       action.type === "CART/CLEAR_CART" ||
       action.type === "CART/SET_CART"

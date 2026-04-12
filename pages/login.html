@@ -411,7 +411,25 @@
     </div>
 
     <script type="module">
-      import { loginWithGoogle } from "../js/services/firebase.service.js";
+      import {
+        loginWithGoogle,
+        auth,
+      } from "../js/services/firebase.service.js";
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          window.location.href = "index.html";
+        }
+      });
 
       const googleLoginBtn = document.getElementById("google-login");
       const errorMessageDiv = document.getElementById("error-message");

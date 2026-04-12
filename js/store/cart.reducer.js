@@ -50,6 +50,12 @@ export function cartReducer(state = initialState, action) {
       return { items: newItems, total: calculateTotal(newItems) };
     }
 
+    case ACTION_TYPES.REMOVE_FROM_CART: {
+      const productId = action.payload;
+      const newItems = state.items.filter((item) => item.id !== productId);
+      return { items: newItems, total: calculateTotal(newItems) };
+    }
+
     case ACTION_TYPES.CLEAR_CART:
       return initialState;
 

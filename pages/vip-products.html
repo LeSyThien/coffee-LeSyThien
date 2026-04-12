@@ -104,7 +104,13 @@
 
       // Initialize
       initRender();
-      initializeAuth();
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
       initNavbar();
       initCart();
 
@@ -127,10 +133,12 @@
           .map((product) => {
             const finalPrice =
               product.price * (1 - (product.discount || 0) / 100);
+            const imageUrl =
+              product.image || product.imgUrl || product.imageUrl || "";
             return `
               <div class="product-card">
                 <div class="product-image">
-                  ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">` : "☕"}
+                  ${imageUrl ? `<img src="${imageUrl}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">` : "☕"}
                 </div>
                 <div class="product-info">
                   <h3 class="product-name">${product.name}</h3>
@@ -178,14 +186,26 @@
 
       // Load VIP products
       onSnapshot(
-        query(collection(db, "products"), where("isVIPStore", "==", true)),
+        query(collection(db, "products"), where("available", "==", true)),
         (snapshot) => {
-          const vipProducts = snapshot.docs.map((doc) => ({
+          const allProducts = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
+          // Filter for VIP products: isExclusiveVIP: true OR requiredVipLevel > 0
+          const vipProducts = allProducts.filter(
+            (product) =>
+              product.isExclusiveVIP === true ||
+              (product.requiredVipLevel && product.requiredVipLevel > 0),
+          );
           const state = store.getState();
           const userVipLevel = state.user?.data?.vipLevel || 0;
+          console.log(
+            "User VIP Level:",
+            userVipLevel,
+            "Products found:",
+            vipProducts.length,
+          );
           renderVipProducts(vipProducts, userVipLevel);
         },
         (error) => {

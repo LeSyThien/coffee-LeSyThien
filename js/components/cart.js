@@ -78,8 +78,31 @@ export function renderCart(state) {
             .map(
               (item) => `
           <div class="cart-item">
-            <span>${item.name} x${item.quantity}</span>
-            <span>${((item.finalPrice || item.price) * item.quantity).toLocaleString()}đ</span>
+            <div class="cart-item-main">
+              <img
+                class="cart-item-thumb"
+                src="${item.image || "https://placehold.co/50x50?text=%E2%98%95"}"
+                alt="${item.name}"
+                width="50"
+                height="50"
+              />
+              <div class="cart-item-copy">
+                <span class="cart-item-name">${item.name}</span>
+                <span class="cart-item-meta">x${item.quantity}</span>
+              </div>
+            </div>
+            <div class="cart-item-side">
+              <span class="cart-item-price">${((item.finalPrice || item.price) * item.quantity).toLocaleString()}đ</span>
+              <button
+                type="button"
+                class="cart-item-remove"
+                data-product-id="${item.id}"
+                aria-label="Remove ${item.name} from cart"
+                title="Xóa"
+              >
+                🗑️
+              </button>
+            </div>
           </div>
         `,
             )
@@ -92,6 +115,13 @@ export function renderCart(state) {
 
     if (listContainer) listContainer.innerHTML = cartContent;
     if (totalContainer) totalContainer.innerText = `${total.toLocaleString()}đ`;
+
+    cartContainer.querySelectorAll(".cart-item-remove").forEach((button) => {
+      button.onclick = (event) => {
+        event.stopPropagation();
+        removeItemFromCart(button.dataset.productId);
+      };
+    });
 
     // Add or update checkout section
     let checkoutSection = cartContainer.querySelector(".cart-checkout");
@@ -178,6 +208,16 @@ export function renderCart(state) {
     console.error("Error rendering cart:", error);
     console.warn("Cart rendering failed, DOM may not be ready");
   }
+}
+
+export function removeItemFromCart(productId) {
+  if (!productId) return;
+
+  store.dispatch({
+    type: ACTION_TYPES.REMOVE_FROM_CART,
+    payload: productId,
+  });
+  toastInfo("🗑️ Đã xóa sản phẩm khỏi giỏ hàng", 2500);
 }
 
 async function handleCheckout(items, total) {

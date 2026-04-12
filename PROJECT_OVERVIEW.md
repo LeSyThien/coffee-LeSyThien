@@ -4,7 +4,29 @@
 **Built On**: Firebase (Authentication, Firestore, Cloud Functions)
 **Frontend**: Vanilla JavaScript + HTML/CSS
 **State Management**: Custom Redux-like store pattern
-**Last Updated**: April 1, 2026
+**Last Updated**: April 5, 2026
+
+---
+
+## 📚 Documentation Consolidation
+
+All important documentation has been centralized into this file and `readme.md`.
+The following legacy markdown files have been removed to avoid fragmentation:
+
+- `VIETNAMESE_UI_GUIDE.md`
+- `USER_ROLES_SYSTEM.md`
+- `DELIVERABLES.md`
+- `BUG_FIXES_&_SECURITY.md`
+- `CLOUD_FUNCTIONS_SETUP.md`
+- `FIRESTORE_RULES_GUIDE.md`
+- `ADMIN_LOGIN_LOOP_FIX.md`
+
+This document now includes consolidated summaries for:
+
+- Admin role and Cloud Functions setup
+- Vietnamese UI copy / admin labels
+- project deliverables and file structure
+- critical bug fixes and security patches
 
 ---
 

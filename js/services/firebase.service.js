@@ -2,7 +2,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -25,6 +26,12 @@ import {
   getFunctions,
   httpsCallable,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBlOUebYGGUMMOblOi3plg0tPK0qG831gw",
@@ -40,6 +47,7 @@ const app = initializeApp(firebaseConfig);
 initializeFirestore(app, { experimentalForceLongPolling: true });
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 export const functions = getFunctions(app, "asia-southeast1"); // Set region matching your Firebase project
 export { httpsCallable }; // ✅ Export for Cloud Function calls
 const provider = new GoogleAuthProvider();
@@ -164,57 +172,71 @@ export function calculateMemberRank(totalSpent) {
 }
 
 // 1. Login với Google
+export const ensureUserDocument = async (user, initialData = {}) => {
+  if (!user) throw new Error("User object is required");
+
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    await setDoc(
+      userRef,
+      {
+        uid: user.uid,
+        name: user.displayName,
+        email: user.email,
+        balance: 0,
+        totalSpent: 0,
+        role: "user",
+        createdAt: new Date(),
+        ...initialData,
+      },
+      { merge: true },
+    );
+  } else {
+    const existingData = userSnap.data();
+
+    if (
+      existingData.name !== user.displayName ||
+      existingData.email !== user.email
+    ) {
+      await updateDoc(userRef, {
+        name: user.displayName,
+        email: user.email,
+        updatedAt: new Date(),
+      });
+    }
+
+    if (
+      existingData.totalSpent === undefined ||
+      existingData.totalSpent === null
+    ) {
+      await updateDoc(userRef, {
+        totalSpent: 0,
+      });
+    }
+  }
+};
+
 export const loginWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-
-    // Kiểm tra/Tạo user trong Firestore
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
-      // Use {merge: true} to ensure existing fields (like role set by admin) are preserved
-      // This prevents accidentally overwriting admin-assigned fields
-      await setDoc(
-        userRef,
-        {
-          uid: user.uid,
-          name: user.displayName,
-          email: user.email,
-          balance: 0,
-          totalSpent: 0, // Initialize loyalty program tracking
-          role: "user",
-          createdAt: new Date(),
-        },
-        { merge: true },
-      );
-    } else {
-      // Document exists - ensure essential fields are present (safe update only needed fields)
-      const existingData = userSnap.data();
-
-      // Only update name/email if they've changed in Google account
-      if (
-        existingData.name !== user.displayName ||
-        existingData.email !== user.email
-      ) {
-        await updateDoc(userRef, {
-          name: user.displayName,
-          email: user.email,
-          updatedAt: new Date(),
-        });
-      }
-
-      // Ensure totalSpent field exists (for legacy users)
-      if (!existingData.totalSpent) {
-        await updateDoc(userRef, {
-          totalSpent: 0,
-        });
-      }
-    }
-    return user;
+    await signInWithRedirect(auth, provider);
   } catch (error) {
     console.error("Login failed:", error);
+    throw error;
+  }
+};
+
+export const handleGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    const user = result?.user || auth.currentUser;
+    if (!user) return null;
+
+    await ensureUserDocument(user);
+    return user;
+  } catch (error) {
+    console.error("Redirect sign-in failed:", error);
     throw error;
   }
 };
@@ -415,6 +437,9 @@ export const createProduct = async (productData) => {
     stock: Number(productData.stock) || 0,
     discount: Number(productData.discount) || 0,
     available: productData.available !== false,
+    showOnHome: productData.showOnHome === true,
+    requiredVipLevel: Number(productData.requiredVipLevel) || 0,
+    isExclusiveVIP: Boolean(productData.isExclusiveVIP),
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -452,9 +477,22 @@ export const updateProduct = async (productId, updates) => {
     stock: Number(updates.stock) || 0,
     discount: Number(updates.discount) || 0,
     available: updates.available,
+    showOnHome: updates.showOnHome === true,
+    requiredVipLevel: Number(updates.requiredVipLevel) || 0,
+    isExclusiveVIP: Boolean(updates.isExclusiveVIP),
     updatedAt: new Date(),
   });
 
+  return { success: true };
+};
+
+export const toggleVipStore = async (productId, newIsExclusiveVIP) => {
+  if (!productId) throw new Error("Product ID is required.");
+  const productRef = doc(db, "products", productId);
+  await updateDoc(productRef, {
+    isExclusiveVIP: !!newIsExclusiveVIP,
+    updatedAt: new Date(),
+  });
   return { success: true };
 };
 
@@ -508,39 +546,6 @@ export const saveUserProfile = async (userId, profileData) => {
     return { success: true };
   } catch (error) {
     console.error("Save profile failed:", error);
-    throw error;
-  }
-};
-
-/**
- * Safely ensure user document exists with critical fields
- * Use this instead of setDoc to avoid overwriting existing fields
- * @param {string} userId - User ID
- * @param {object} initialData - Initial data (only used if document doesn't exist)
- */
-export const ensureUserDocument = async (userId, initialData = {}) => {
-  try {
-    const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
-      // Create new document with default fields + any initial data
-      await setDoc(
-        userRef,
-        {
-          uid: userId,
-          balance: 0,
-          role: "user",
-          createdAt: new Date(),
-          ...initialData, // Safe: spreads initialData on top (can override defaults)
-        },
-        { merge: true },
-      );
-    }
-
-    return { success: true, created: !userSnap.exists() };
-  } catch (error) {
-    console.error("Ensure user document failed:", error);
     throw error;
   }
 };
@@ -793,6 +798,29 @@ export const getUserVIPInfo = async (userId) => {
     };
   } catch (error) {
     console.error("Get user VIP info failed:", error);
+    throw error;
+  }
+};
+
+// ===== AVATAR UPLOAD FUNCTION =====
+export const uploadAvatar = async (file, userId) => {
+  try {
+    if (!file) throw new Error("No file provided");
+    if (!userId) throw new Error("User ID is required");
+
+    // Create a unique filename
+    const fileName = `avatars/${userId}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, fileName);
+
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file);
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (error) {
+    console.error("Avatar upload failed:", error);
     throw error;
   }
 };

@@ -1,16 +1,22 @@
-import { initRender } from "./core/render.js";
-import { initializeAuth } from "./core/auth-init.js";
-import { initNavbar } from "./components/navbar.js";
-import { initCart } from "./components/cart.js";
-import { initBannerCarousel } from "./components/carousel.js";
-import store from "./store/index.js";
-import { ACTION_TYPES } from "./store/actions.js";
+import { initRender } from "../core/render.js";
+import { initializeAuth } from "../core/auth-init.js";
+import { initNavbar } from "../components/navbar.js";
+import { initCart } from "../components/cart.js";
+import { initBannerCarousel } from "../components/carousel.js";
+import store from "../store/index.js";
+import { ACTION_TYPES } from "../store/actions.js";
 
 // 1. Initialize rendering system
 initRender();
 
 // 2. Initialize Firebase Auth - restores session, sets up realtime listeners
-initializeAuth();
+initializeAuth()
+  .then(() => {
+    console.log("Auth initialized successfully!");
+  })
+  .catch((error) => {
+    console.error("Auth initialization failed:", error);
+  });
 
 // 3. Initialize navbar component
 initNavbar();

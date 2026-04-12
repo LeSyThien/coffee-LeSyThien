@@ -1016,6 +1016,16 @@
           </label>
         </div>
         <div class="form-group">
+          <label for="form-required-vip-level">Cấp VIP yêu cầu</label>
+          <input
+            id="form-required-vip-level"
+            type="number"
+            min="0"
+            placeholder="0"
+            style="color: #fff; background: #1a1a1c; border: 1px solid #333"
+          />
+        </div>
+        <div class="form-group">
           <label
             style="
               display: flex;
@@ -1025,11 +1035,11 @@
             "
           >
             <input
-              id="form-vip-store"
+              id="form-is-exclusive-vip"
               type="checkbox"
               style="width: 16px; height: 16px; cursor: pointer"
             />
-            <span>Show in VIP Store 👑</span>
+            <span>Đặc quyền VIP Store</span>
           </label>
         </div>
         <div class="form-actions">
@@ -1055,6 +1065,6 @@
     <div id="cart-container"></div>
     <div id="toast" class="toast"></div>
 
-    <script type="module" src="../js/admin.js"></script>
+    <script type="module" src="../js/pages/admin.js"></script>
   </body>
 </html>

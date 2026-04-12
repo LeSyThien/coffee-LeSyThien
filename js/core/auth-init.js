@@ -10,7 +10,12 @@
  * import { initializeAuth } from "./core/auth-init.js";
  */
 
-import { auth, db } from "../services/firebase.service.js";
+import {
+  auth,
+  db,
+  handleGoogleRedirectResult,
+  calculateMemberRank,
+} from "../services/firebase.service.js";
 import {
   onAuthStateChanged,
   getIdTokenResult,
@@ -117,7 +122,7 @@ async function ensureCartCloudState(user) {
  * Initialize Firebase Auth - restores session and sets up realtime listeners
  * Can be called multiple times safely - only initializes once
  */
-export function initializeAuth() {
+export async function initializeAuth() {
   // Prevent duplicate initialization
   if (isInitialized) {
     return;
@@ -136,6 +141,13 @@ export function initializeAuth() {
       type: ACTION_TYPES.SET_AUTH_READY,
       payload: true,
     });
+  }
+
+  // Handle redirect sign-in results first (for signInWithRedirect flow)
+  try {
+    await handleGoogleRedirectResult();
+  } catch (error) {
+    console.error("Failed to process sign-in redirect:", error);
   }
 
   // Set up auth state listener (only set up once)
@@ -160,12 +172,26 @@ export function initializeAuth() {
       payload: true,
     });
 
+    const isHomePage =
+      window.location.pathname.includes("index.html") ||
+      window.location.pathname.endsWith("/") ||
+      window.location.pathname.includes("/pages/index.html");
+
+    const productsQuery = isHomePage
+      ? query(
+          collection(db, "products"),
+          where("available", "==", true),
+          where("isExclusiveVIP", "==", false),
+        )
+      : query(
+          collection(db, "products"),
+          where("available", "==", true),
+          where("isVIPOnly", "==", false),
+        );
+
+    // Note: If Firebase throws a composite index error, create an index for (available, isVIPOnly, showOnHome).
     unsubscribeProductsSnapshot = onSnapshot(
-      query(
-        collection(db, "products"),
-        where("available", "==", true),
-        where("isVIPOnly", "==", false),
-      ),
+      productsQuery,
       (querySnap) => {
         const productsList = [];
         querySnap.forEach((doc) => {
@@ -199,6 +225,10 @@ export function initializeAuth() {
           if (docSnap.exists()) {
             const userData = docSnap.data();
 
+            // Calculate VIP level from totalSpent
+            const totalSpent = Number(userData.totalSpent) || 0;
+            const memberRank = calculateMemberRank(totalSpent);
+
             // Check for admin custom claim with email fallback
             const idTokenResult = await user.getIdTokenResult();
             let isAdmin = idTokenResult.claims.admin === true;
@@ -208,8 +238,12 @@ export function initializeAuth() {
               isAdmin = true;
             }
 
-            // Add admin flag to user data for client-side checks
-            const userDataWithAdmin = { ...userData, isAdmin };
+            // Add admin flag and VIP level to user data for client-side checks
+            const userDataWithAdmin = {
+              ...userData,
+              isAdmin,
+              vipLevel: memberRank.rank,
+            };
 
             store.dispatch({
               type: ACTION_TYPES.SET_USER,

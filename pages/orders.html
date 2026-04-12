@@ -521,7 +521,13 @@
       import { initializeAuth } from "../js/core/auth-init.js";
 
       // Initialize auth and navbar
-      initializeAuth();
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
       initNavbar();
       initCart();
 

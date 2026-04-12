@@ -17,8 +17,17 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAuth() && isOwner(userId);
       allow update: if (
-        isOwner(userId) && 
-        request.resource.data.diff(resource.data).changedKeys().hasOnly(["name", "phone", "updatedAt"])
+        isOwner(userId) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "name",
+          "phone",
+          "updatedAt",
+          "balance",
+          "totalSpent",
+          "lastClaimedGift",
+        ]) &&
+        request.resource.data.balance >= 0 &&
+        request.resource.data.totalSpent >= 0
       ) || (
         isAdmin() && 
         request.resource.data.diff(resource.data).changedKeys().hasOnly(["name", "phone", "updatedAt", "balance", "role"])

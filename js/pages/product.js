@@ -2,14 +2,21 @@ import {
   doc,
   getDoc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./services/firebase.service.js";
-import store from "./store/index.js";
-import { initNavbar } from "./components/navbar.js";
-import { initCart } from "./components/cart.js";
-import { initializeAuth } from "./core/auth-init.js";
-import { ACTION_TYPES } from "./store/actions.js";
+import { db } from "../services/firebase.service.js";
+import store from "../store/index.js";
+import { initNavbar } from "../components/navbar.js";
+import { initCart } from "../components/cart.js";
+import { initializeAuth } from "../core/auth-init.js";
+import { ACTION_TYPES } from "../store/actions.js";
+import { toastError } from "../services/toast.service.js";
 
-initializeAuth();
+initializeAuth()
+  .then(() => {
+    console.log("Auth initialized successfully!");
+  })
+  .catch((error) => {
+    console.error("Auth initialization failed:", error);
+  });
 initNavbar();
 initCart();
 
@@ -17,6 +24,7 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
 const root = document.getElementById("product-root");
+let lastRenderKey = "";
 
 async function renderProductDetail(productId) {
   if (!productId) {
@@ -61,6 +69,21 @@ async function renderProductDetail(productId) {
 
     const discount = p.discount || 0;
     const discountedPrice = p.price * (1 - discount / 100);
+    const requiredVipLevel = Number(p.requiredVipLevel) || 0;
+    const userVipLevel = Number(store.getState().user?.data?.vipLevel) || 0;
+    const hasVipAccess = userVipLevel >= requiredVipLevel;
+    const isOutOfStock = Number(p.stock) <= 0;
+    const isVipLocked = requiredVipLevel > 0 && !hasVipAccess;
+    const buttonLabel = isOutOfStock
+      ? "Out of Stock"
+      : isVipLocked
+        ? `VIP ${requiredVipLevel}+ Required`
+        : "Add to Cart";
+    const vipNotice = isVipLocked
+      ? `<div class="badge" style="background: rgba(255, 77, 79, 0.12); color: var(--color-metallic-gold); border: 1px solid rgba(212, 175, 55, 0.28);">Bạn cần đạt VIP ${requiredVipLevel} để mua sản phẩm này</div>`
+      : requiredVipLevel > 0
+        ? `<div class="badge badge-gold">Yêu cầu VIP ${requiredVipLevel}+</div>`
+        : "";
 
     root.innerHTML = `
       <div class="product-detail">
@@ -72,6 +95,7 @@ async function renderProductDetail(productId) {
             <span class="tag">${p.category || "Uncategorized"}</span>
             <span class="tag">Stock: ${p.stock || 0}</span>
             <span class="tag">${p.available ? "Available" : "Unavailable"}</span>
+            ${requiredVipLevel > 0 ? `<span class="tag">VIP ${requiredVipLevel}+</span>` : ""}
             ${discount > 0 ? `<span class="tag">-${discount}%</span>` : ""}
           </div>
 
@@ -80,9 +104,17 @@ async function renderProductDetail(productId) {
           </div>
 
           <p>${p.description || "No description provided."}</p>
+          ${vipNotice}
 
           <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
-            <button id="add-to-cart" class="btn-primary" ${p.stock <= 0 ? "disabled" : ""}>Add to Cart</button>
+            <button
+              id="add-to-cart"
+              class="btn-primary"
+              ${isOutOfStock || isVipLocked ? "disabled" : ""}
+              style="${isVipLocked ? "background: var(--color-surface-l3); color: var(--color-text-secondary); box-shadow: none;" : ""}"
+            >
+              ${buttonLabel}
+            </button>
             <button id="go-back" class="btn-primary" style="background: #222; color: #fff;">Back to Shop</button>
           </div>
 
@@ -118,8 +150,12 @@ async function renderProductDetail(productId) {
     });
 
     document.getElementById("add-to-cart").addEventListener("click", () => {
-      if (p.stock <= 0) {
+      if (isOutOfStock) {
         alert("Out of stock");
+        return;
+      }
+      if (isVipLocked) {
+        toastError(`Bạn cần đạt VIP ${requiredVipLevel} để mua sản phẩm này`);
         return;
       }
       store.dispatch({
@@ -127,7 +163,9 @@ async function renderProductDetail(productId) {
         payload: {
           id: productId,
           name: p.name,
-          price: discountedPrice || p.price,
+          price: p.price,
+          finalPrice: discountedPrice || p.price,
+          discount,
           image: p.image,
           quantity: 1,
         },
@@ -156,5 +194,14 @@ function formatCurrency(value) {
 if (!id) {
   renderProductDetail(null);
 } else {
-  renderProductDetail(id);
+  const renderCurrentProduct = () => {
+    const state = store.getState();
+    const renderKey = `${id}:${state.ui?.isAuthReady}:${state.user?.data?.vipLevel ?? "guest"}`;
+    if (renderKey === lastRenderKey) return;
+    lastRenderKey = renderKey;
+    renderProductDetail(id);
+  };
+
+  renderCurrentProduct();
+  store.subscribe(renderCurrentProduct);
 }

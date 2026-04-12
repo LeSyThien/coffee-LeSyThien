@@ -86,7 +86,13 @@
       } from "../js/services/toast.service.js";
 
       // Initialize shared auth state
-      initializeAuth();
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
 
       // ⚡ SPEED: Hide loading spinner immediately if user was previously logged in
       const wasLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
@@ -340,8 +346,11 @@
             </div>
 
             <!-- VIP Exclusive Store -->
-            <div class="vip-products-section">
-              <div class="vip-products-title">✨ VIP Exclusive Store</div>
+            <div class="vip-products-section" style="display: flex; flex-direction: column; gap: 1rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div class="vip-products-title">✨ VIP Exclusive Store</div>
+                <a href="vip-products.html" class="vip-gift-button" style="background: #d4af37; color: #000; padding: 0.85rem 1.25rem; border-radius: 999px; text-decoration: none; font-weight: 700;">Go to VIP Store</a>
+              </div>
               <div id="vip-products-grid" class="vip-products-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
                 <div style="grid-column: 1/-1; text-align: center; color: #888; padding: 3rem 1rem;">Loading VIP products...</div>
               </div>
