@@ -12,5 +12,38 @@
         "*.local"
       ]
     }
-  ]
+  ],
+
+  "hosting": {
+    "public": "dist",
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "//": "Tự động đá .html sang link đẹp",
+    "redirects": [
+      {
+        "source": "/pages/:path*.html",
+        "type": 301,
+        "destination": "/:path*"
+      },
+      {
+        "source": "/:path*.html",
+        "type": 301,
+        "destination": "/:path*"
+      }
+    ],
+    "rewrites": [
+      { "source": "/", "destination": "/pages/index.html" },
+      { "source": "/login", "destination": "/pages/login.html" },
+      { "source": "/register", "destination": "/pages/register.html" },
+      { "source": "/admin", "destination": "/pages/admin.html" },
+      { "source": "/deposit", "destination": "/pages/deposit.html" },
+      { "source": "/profile", "destination": "/pages/profile.html" },
+      { "source": "/products", "destination": "/pages/products.html" },
+      { "source": "/orders", "destination": "/pages/orders.html" },
+      { "source": "/vip", "destination": "/pages/vip.html" },
+      { "source": "/vip-products", "destination": "/pages/vip-products.html" },
+      { "source": "/about", "destination": "/pages/about.html" },
+      { "source": "/contact", "destination": "/pages/contact.html" }
+    ]
+  }
 }

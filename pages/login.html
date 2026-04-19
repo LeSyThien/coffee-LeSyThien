@@ -404,7 +404,9 @@
 
           <div class="auth-switch">
             <span class="auth-switch-text">Don't have an account? </span>
-            <a href="register.html" class="auth-switch-link">Create one</a>
+            <a href="/pages/register.html" class="auth-switch-link"
+              >Create one</a
+            >
           </div>
         </div>
       </div>
@@ -427,7 +429,7 @@
         });
       onAuthStateChanged(auth, (user) => {
         if (user) {
-          window.location.href = "index.html";
+          window.location.href = "/";
         }
       });
 
@@ -449,7 +451,7 @@
 
           // Success - redirect to home
           setTimeout(() => {
-            window.location.href = "index.html";
+            window.location.href = "/";
           }, 500);
         } catch (error) {
           // Show error message

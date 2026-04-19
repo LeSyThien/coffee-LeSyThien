@@ -186,7 +186,7 @@ export async function logoutUser() {
   try {
     await signOut(auth);
     currentUserProfile = null;
-    window.location.href = "index.html";
+    window.location.href = "/";
   } catch (error) {
     hideGlobalLoader();
     Toast.error("Failed to log out. Please try again.");

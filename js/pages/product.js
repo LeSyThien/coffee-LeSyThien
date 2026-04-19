@@ -146,7 +146,7 @@ async function renderProductDetail(productId) {
     `;
 
     document.getElementById("go-back").addEventListener("click", () => {
-      window.location.href = "index.html";
+      window.location.href = "/";
     });
 
     document.getElementById("add-to-cart").addEventListener("click", () => {

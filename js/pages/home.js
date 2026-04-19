@@ -346,7 +346,7 @@ function handleAddToCart(product, button) {
   if (!user) {
     toastInfo("🔐 Vui lòng đăng nhập để mua hàng", 3000);
     setTimeout(() => {
-      window.location.href = "../pages/login.html";
+      window.location.href = "/login";
     }, 500);
     return;
   }
@@ -435,7 +435,7 @@ function initHeroTransition() {
       console.log(`✨ Hero transition saved for product ${productId}`, rect);
 
       // Navigate to product detail page
-      window.location.href = `product.html?id=${productId}`;
+      window.location.href = `/product?id=${productId}`;
     });
   });
 }

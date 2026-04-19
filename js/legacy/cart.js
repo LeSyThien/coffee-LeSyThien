@@ -301,14 +301,14 @@ export function updateCartUI() {
 function proceedToCheckout() {
   if (!currentUserProfile) {
     // Redirect to login, store intent in sessionStorage
-    sessionStorage.setItem("redirectAfterLogin", "checkout.html");
-    window.location.href = "login.html";
+    sessionStorage.setItem("redirectAfterLogin", "/checkout");
+    window.location.href = "/login";
     return;
   }
 
   const { total } = calculateTotals();
   if (currentUserProfile.balance >= total && cartItems.length > 0) {
-    window.location.href = "checkout.html";
+    window.location.href = "/checkout";
   } else {
     Toast.error("Cannot proceed to checkout. Please check your balance.");
   }

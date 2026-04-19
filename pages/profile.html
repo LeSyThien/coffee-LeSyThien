@@ -703,7 +703,7 @@
           // Nếu không có -> redirect to login
           if (!auth.currentUser) {
             console.warn("❌ No auth.currentUser - redirect to login");
-            window.location.href = "login.html";
+            window.location.href = "/login";
             return;
           }
 
@@ -754,7 +754,7 @@
        */
       function loadProfileData() {
         if (!auth.currentUser) {
-          window.location.href = "login.html";
+          window.location.href = "/login";
           return;
         }
 
@@ -920,7 +920,7 @@
           if (countdownInterval) clearInterval(countdownInterval);
           await logoutUser();
           console.log("✅ Logged out successfully!");
-          window.location.href = "login.html";
+          window.location.href = "/login";
         } catch (error) {
           console.error("❌ Logout failed:", error);
           toastError("Failed to sign out");

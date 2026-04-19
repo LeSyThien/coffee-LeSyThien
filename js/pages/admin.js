@@ -2783,7 +2783,7 @@ function initializeAdmin() {
   const backToShopBtn = document.getElementById("back-to-shop");
   if (backToShopBtn) {
     backToShopBtn.onclick = () => {
-      window.location.href = "index.html";
+      window.location.href = "/";
     };
   }
 
@@ -3259,7 +3259,7 @@ function init() {
 
     if (!user) {
       console.log("❌ No user, redirecting to login");
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
 
@@ -3270,7 +3270,7 @@ function init() {
 
       if (!tokenResult.claims.admin) {
         console.log("❌ Not admin, redirecting to index");
-        window.location.href = "index.html";
+        window.location.href = "/";
         return;
       }
 
@@ -3286,7 +3286,7 @@ function init() {
       initializeAdmin();
     } catch (error) {
       console.error("❌ Error checking admin claims:", error);
-      window.location.href = "login.html";
+      window.location.href = "/login";
     }
   });
 

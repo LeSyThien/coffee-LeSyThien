@@ -174,9 +174,8 @@ export async function initializeAuth() {
     });
 
     const isHomePage =
-      window.location.pathname.includes("index.html") ||
-      window.location.pathname.endsWith("/") ||
-      window.location.pathname.includes("/pages/index.html");
+      window.location.pathname === "/" ||
+      window.location.pathname.includes("/index");
 
     const productsQuery = isHomePage
       ? query(
@@ -477,7 +476,7 @@ function showUpsellModal(userId, totalSpent, dismissKey) {
     const modal = document.getElementById("vipUpsellModal");
     if (modal) modal.remove();
     overlay.remove();
-    window.location.href = "/pages/vip.html";
+    window.location.href = "/vip";
   });
 
   overlay.addEventListener("click", (e) => {

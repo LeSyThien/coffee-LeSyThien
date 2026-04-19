@@ -126,15 +126,15 @@ export function renderNavbar(state) {
   navRoot.innerHTML = `
     <nav class="navbar">
       <div class="nav-left">
-        <a href="index.html" class="navbar-brand">☕ Coffee</a>
+        <a href="/pages/index.html" class="navbar-brand">☕ Coffee</a>
       </div>
 
       <div class="nav-center" style="display: flex; gap: 2rem; font-size: 14px;">
-        <a href="index.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Home</a>
-        <a href="products.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Menu</a>
-        ${user ? `<a href="orders.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Orders</a>` : ""}
-        <a href="about.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Our Story</a>
-        <a href="contact.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Contact</a>
+        <a href="/pages/index.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Home</a>
+        <a href="/pages/products.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Menu</a>
+        ${user ? `<a href="/pages/orders.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Orders</a>` : ""}
+        <a href="/pages/about.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Our Story</a>
+        <a href="/pages/contact.html" class="nav-link" style="color: #ccc; text-decoration: none; transition: all 0.3s;">Contact</a>
       </div>
 
       <div class="nav-center-right" style="display: flex; align-items: center; position: relative;">
@@ -158,12 +158,12 @@ export function renderNavbar(state) {
           <div id="avatar-btn" class="avatar-container" style="cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px;">
             ${
               user
-                ? `<a href="vip.html" class="vip-badge" title="View VIP Benefits" style="text-decoration: none; ${
+                ? `<a href="/pages/vip.html" class="vip-badge" title="View VIP Benefits" style="text-decoration: none; ${
                     user.vipLevel && user.vipLevel > 0
                       ? "background: linear-gradient(45deg, #d4af37, #f9e29c, #d4af37); background-size: 200% auto; animation: shine 3s linear infinite; box-shadow: 0 0 12px rgba(212, 175, 55, 0.4); color: #000;"
                       : "background: rgba(100, 100, 100, 0.5); color: #ccc;"
                   }">👑 ${user.vipLevel && user.vipLevel > 0 ? `V${user.vipLevel}` : "Member"}</a>`
-                : `<a href="login.html" class="vip-badge" title="Login to join VIP" style="text-decoration: none; background: rgba(100, 100, 100, 0.5); color: #ccc;">👑 Login</a>`
+                : `<a href="/pages/login.html" class="vip-badge" title="Login to join VIP" style="text-decoration: none; background: rgba(100, 100, 100, 0.5); color: #ccc;">👑 Login</a>`
             }
             ${avatarHTML}
             <div id="profile-dropdown" style="display: none; position: absolute; top: 50px; right: 0; width: 200px; background: rgba(42, 42, 42, 0.95); backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; padding: 16px; animation: fadeIn 0.3s; border: 1px solid rgba(200, 155, 60, 0.2);">
@@ -175,18 +175,18 @@ export function renderNavbar(state) {
                   <div id="nav-username" style="color: #fff; font-weight: 600;">${user.name}</div>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
-                  <a href="orders.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">📦 My Orders</a>
-                  <a href="deposit.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">💰 Deposit</a>
-                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="vip.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">👑 VIP Club</a>` : ""}
-                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="vip-products.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">✨ VIP Store</a>` : ""}
-                  ${isAdmin ? `<a href="admin.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">⚙️ Admin Dashboard</a>` : ""}
+                  <a href="/pages/profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+                  <a href="/pages/orders.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">📦 My Orders</a>
+                  <a href="/pages/deposit.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">💰 Deposit</a>
+                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="/pages/vip.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">👑 VIP Club</a>` : ""}
+                  ${user.vipLevel && user.vipLevel > 0 ? `<a href="/pages/vip-products.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">✨ VIP Store</a>` : ""}
+                  ${isAdmin ? `<a href="/pages/admin.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">⚙️ Admin Dashboard</a>` : ""}
                 </div>
               `
                   : `
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <a href="profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
-                  <a href="login.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">🔐 Login</a>
+                  <a href="/pages/profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+                  <a href="/pages/login.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">🔐 Login</a>
                 </div>
               `
               }

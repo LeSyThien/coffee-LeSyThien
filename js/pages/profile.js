@@ -289,7 +289,7 @@ function createFloatingParticles() {
 
 // Initialize particles when profile loads
 document.addEventListener("DOMContentLoaded", () => {
-  if (window.location.pathname.includes("profile.html")) {
+  if (window.location.pathname.includes("/profile")) {
     createFloatingParticles();
   }
 });

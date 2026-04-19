@@ -171,13 +171,13 @@ export function renderCart(state) {
 
           if (!user) {
             // Redirect to login
-            window.location.href = "login.html";
+            window.location.href = "/login";
             return;
           }
 
           if (user.balance < total) {
             // Redirect to deposit
-            window.location.href = "deposit.html";
+            window.location.href = "/deposit";
             return;
           }
 

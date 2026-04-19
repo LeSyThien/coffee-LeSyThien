@@ -110,6 +110,15 @@ const state = {
 let createCooldownTimer = null;
 let createCooldownInterval = null;
 
+const getAuthUser = () => {
+  return new Promise((resolve) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      unsubscribe();
+      resolve(user);
+    });
+  });
+};
+
 function formatCurrency(value) {
   return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 }
@@ -1046,12 +1055,17 @@ async function init() {
     }
   });
 
-  if (!auth.currentUser) {
+  const currentUser = await getAuthUser();
+
+  if (!currentUser) {
+    // Chỉ khi Firebase trả về null (xác nhận không có ai đăng nhập) mới hiện Toast
     showToast("Vui lòng đăng nhập để nạp tiền.", "error");
+    // Có thể thêm: window.location.href = "/login"; nếu muốn đuổi khách đi đăng nhập
     return;
   }
 
-  state.user = auth.currentUser;
+  // Nếu tới đây nghĩa là ĐÃ CÓ user chắc chắn
+  state.user = currentUser;
   await resumeActiveRequest();
 }
 
