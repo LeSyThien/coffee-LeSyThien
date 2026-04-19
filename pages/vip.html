@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🏛️ VIP Club - Coffee Premium</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/navbar.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/vip-exclusive.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+  </head>
+  <body
+    style="
+      background: linear-gradient(
+        135deg,
+        #0a0a0b 0%,
+        #1a1a1c 50%,
+        #0a0a0b 100%
+      );
+      min-height: 100vh;
+    "
+  >
+    <!-- Navbar -->
+    <div id="navbar-root"></div>
+
+    <!-- VIP Page Content -->
+    <div id="vip-page-root">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 80vh;
+          flex-direction: column;
+        "
+      >
+        <div class="luxury-spinner"></div>
+        <div style="color: #d4af37; font-size: 1.1rem">
+          Loading VIP Premium Experience...
+        </div>
+      </div>
+    </div>
+
+    <style>
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+
+    <!-- Cart Sidebar -->
+    <div id="cart-root"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script type="module">
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import {
+        auth,
+        db,
+        claimDailyVIPGift,
+        getUserVIPInfo,
+        calculateMemberRank,
+      } from "../js/services/firebase.service.js";
+      import { purchaseVipPackage } from "../js/services/vip.service.js";
+      import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+      import {
+        doc,
+        getDoc,
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+      import { initNavbar, renderNavbar } from "../js/components/navbar.js";
+      import { renderCart } from "../js/components/cart.js";
+      import store from "../js/store/index.js";
+      import {
+        toastSuccess,
+        toastError,
+        toastInfo,
+        initializeToastContainer,
+      } from "../js/services/toast.service.js";
+
+      // Helper function to format countdown timer
+      // ✅ Helper function: Kiểm tra xem VIP expiration có phải "vĩnh viễn" không
+      function isPermanent(vipExpiration) {
+        // Permanent nếu: null (auto-promo VIP 10) hoặc year 9999 (legendary purchase)
+        return (
+          vipExpiration === null ||
+          vipExpiration === "permanent" ||
+          (vipExpiration && vipExpiration.startsWith("9999-"))
+        );
+      }
+
+      function formatCountdown(expiryDate) {
+        const now = new Date();
+        const diff = expiryDate - now;
+
+        if (diff <= 0) return "❌ Hết Hạn";
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+        );
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        if (days > 0) {
+          return `⏰ Còn ${days} ngày ${hours} giờ`;
+        } else if (hours > 0) {
+          return `⏱️ Còn ${hours} giờ ${minutes} phút`;
+        } else {
+          return `🔴 Còn ${minutes} phút`;
+        }
+      }
+
+      // ✅ Update countdown every minute - Handle permanent expiration (year 9999 format)
+      setInterval(() => {
+        const countdownEl = document.getElementById("vip-countdown");
+        const auraEl = document.getElementById("vip-aura");
+        if (countdownEl && window.currentUserData) {
+          const vipExpiration = window.currentUserData.vipExpiration;
+          const vipLevel = window.currentUserData.vipLevel;
+
+          // ✅ Check for permanent status: null, "permanent", year 9999, hoặc VIP 10
+          if (isPermanent(vipExpiration) || vipLevel === 10) {
+            countdownEl.textContent = "♾️ Sở hữu Vĩnh Viễn";
+            countdownEl.style.color = "#bf00ff";
+            if (auraEl) auraEl.innerHTML = "👑 Elite Patron";
+          } else {
+            const expiryDate = new Date(vipExpiration);
+            const timeLeft = expiryDate - new Date();
+
+            if (timeLeft > 0) {
+              countdownEl.textContent = formatCountdown(expiryDate);
+              // ⚠️ Cảnh báo khi gần hết hạn (dưới 3 ngày)
+              if (timeLeft < 3 * 24 * 60 * 60 * 1000) {
+                countdownEl.style.color = "#ff0000";
+                if (auraEl) auraEl.innerHTML = "⚠️ Sắp Hết";
+              }
+            } else {
+              countdownEl.textContent = "❌ Hết Hạn";
+              if (auraEl) auraEl.innerHTML = "❌ Expired";
+            }
+          }
+        }
+      }, 60000); // Cập nhật mỗi 1 phút
+
+      // Initialize shared auth state
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
+
+      // ⚡ SPEED: Hide loading spinner immediately if user was previously logged in
+      const wasLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+      if (wasLoggedIn) {
+        const loadingSpinner = document.querySelector(".spinner");
+        if (loadingSpinner) {
+          loadingSpinner.style.display = "none";
+        }
+      }
+
+      // Check auth and load VIP page
+      let isAuthChecked = false;
+
+      onAuthStateChanged(auth, async (firebaseUser) => {
+        // Hide loading spinner once auth check is complete (for first-time users)
+        const loadingSpinner = document.querySelector(".spinner");
+        if (loadingSpinner) {
+          loadingSpinner.style.display = "none";
+        }
+
+        isAuthChecked = true;
+
+        if (!firebaseUser) {
+          // Show login overlay instead of redirecting
+          const vipRoot = document.getElementById("vip-page-root");
+          vipRoot.innerHTML = `
+            <div class="vip-container">
+              <div class="vip-header">
+                <div class="vip-title">🔒 VIP Access Required</div>
+                <div class="vip-subtitle">Please login to access exclusive VIP benefits</div>
+              </div>
+              <div style="text-align: center; padding: 2rem;">
+                <button onclick="window.location.href='login.html'" class="vip-gift-button" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                  🚀 Login Now
+                </button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        try {
+          // Get user data
+          const userRef = doc(db, "users", firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (!userSnap.exists()) {
+            toastError("User data not found");
+            return;
+          }
+
+          const userData = userSnap.data();
+          const vipInfo = calculateMemberRank(userData.totalSpent || 0);
+          const vipFull = await getUserVIPInfo(firebaseUser.uid);
+
+          // Update store
+          store.dispatch({
+            type: "SET_USER",
+            payload: {
+              data: {
+                ...userData,
+                uid: firebaseUser.uid,
+                vipLevel: vipInfo.rank,
+              },
+            },
+          });
+
+          // ✅ Use initNavbar() to enable real-time updates (sets up store.subscribe)
+          initNavbar();
+          renderCart(store.getState());
+          renderVipPage(userData, vipInfo, vipFull);
+
+          // ✅ Store subscribe callback to update progress bar & cart in real-time
+          store.subscribe(() => {
+            renderCart(store.getState());
+            updateVipProgress();
+          });
+        } catch (error) {
+          console.error("Error loading VIP page:", error);
+          toastError("Error loading VIP benefits");
+        }
+      });
+
+      // Function to update progress bar in real-time
+      function updateVipProgress() {
+        const user = store.getState().user?.data;
+        if (!user) return;
+
+        const totalSpent = user.totalSpent || 0;
+        const vipInfo = calculateMemberRank(totalSpent);
+
+        if (vipInfo.rank >= 10) return; // Max level reached
+
+        // ✅ CORRECT TIER LIMITS - MUST MATCH calculateMemberRank thresholds
+        const tierLimits = [
+          0, // VIP 0: start
+          500000, // VIP 1: min 500k
+          1000000, // VIP 2: min 1M
+          5000000, // VIP 3: min 5M
+          10000000, // VIP 4: min 10M
+          20000000, // VIP 5: min 20M
+          40000000, // VIP 6: min 40M
+          80000000, // VIP 7: min 80M
+          160000000, // VIP 8: min 160M
+          320000000, // VIP 9: min 320M
+          500000000, // VIP 10: min 500M
+        ];
+        const currentTierMin = tierLimits[vipInfo.rank];
+        const nextTierLimit = tierLimits[vipInfo.rank + 1];
+        const spentInTier = totalSpent - currentTierMin;
+        const tierRange = nextTierLimit - currentTierMin;
+        const progressPercent = (spentInTier / tierRange) * 100;
+        const clampedProgress = Math.max(0, Math.min(100, progressPercent));
+        const needMore = Math.max(0, nextTierLimit - totalSpent);
+
+        // Update progress bar
+        const progressFill = document.querySelector(".vip-progress-fill");
+        const progressPercentEl = document.getElementById("progress-percent");
+        const needMoreEl = document.querySelector(
+          ".vip-progress-label:last-child",
+        );
+
+        if (progressFill) progressFill.style.width = clampedProgress + "%";
+        if (progressPercentEl)
+          progressPercentEl.textContent = clampedProgress.toFixed(1) + "%";
+        if (needMoreEl)
+          needMoreEl.textContent = `Need ${new Intl.NumberFormat("vi-VN").format(needMore)}đ more`;
+      }
+
+      function renderVipPage(userData, vipInfo, vipFull) {
+        const vipRoot = document.getElementById("vip-page-root");
+        const totalSpent = userData.totalSpent || 0;
+        const balance = userData.balance || 0;
+
+        // Calculate accurate progress percentage
+        let progressPercent = 0;
+        let nextTierLimit = 0;
+        let needMore = 0;
+
+        if (vipInfo.rank < 10) {
+          // ✅ CORRECT TIER LIMITS - MUST MATCH calculateMemberRank thresholds
+          const tierLimits = [
+            0, // VIP 0: start
+            500000, // VIP 1: min 500k
+            1000000, // VIP 2: min 1M
+            5000000, // VIP 3: min 5M
+            10000000, // VIP 4: min 10M
+            20000000, // VIP 5: min 20M
+            40000000, // VIP 6: min 40M
+            80000000, // VIP 7: min 80M
+            160000000, // VIP 8: min 160M
+            320000000, // VIP 9: min 320M
+            500000000, // VIP 10: min 500M
+          ];
+          const currentTierMin = tierLimits[vipInfo.rank];
+          nextTierLimit = tierLimits[vipInfo.rank + 1];
+          const spentInTier = totalSpent - currentTierMin;
+          const tierRange = nextTierLimit - currentTierMin;
+          progressPercent = (spentInTier / tierRange) * 100;
+          progressPercent = Math.max(0, Math.min(100, progressPercent));
+          needMore = Math.max(0, nextTierLimit - totalSpent);
+        }
+
+        // Generate tier cards
+        const allTiers = [
+          { tier: 1, min: 500_000, discount: 1, dailyGift: 1_000 },
+          { tier: 2, min: 1_000_000, discount: 2, dailyGift: 2_000 },
+          { tier: 3, min: 5_000_000, discount: 3, dailyGift: 5_000 },
+          { tier: 4, min: 10_000_000, discount: 4, dailyGift: 8_000 },
+          { tier: 5, min: 20_000_000, discount: 5, dailyGift: 12_000 },
+          { tier: 6, min: 40_000_000, discount: 6, dailyGift: 18_000 },
+          { tier: 7, min: 80_000_000, discount: 7, dailyGift: 28_000 },
+          { tier: 8, min: 160_000_000, discount: 8, dailyGift: 40_000 },
+          { tier: 9, min: 320_000_000, discount: 9, dailyGift: 60_000 },
+          { tier: 10, min: 500_000_000, discount: 10, dailyGift: 100_000 },
+        ];
+
+        const tierCardsHTML = allTiers
+          .map(
+            (tier) => `
+          <div class="vip-tier-card ${tier.tier === vipInfo.rank ? "current" : ""}">
+            <div class="vip-tier-name">VIP ${tier.tier}</div>
+            <div class="vip-tier-threshold">
+              Spend: ${tier.min.toLocaleString("vi-VN")}đ+
+            </div>
+            <div class="vip-tier-benefits">
+              <div class="vip-tier-benefit">${tier.discount}% Discount</div>
+              <div class="vip-tier-benefit">${tier.dailyGift.toLocaleString("vi-VN")}đ Daily Gift</div>
+              ${tier.tier === vipInfo.rank ? `<div class="vip-tier-benefit" style="color: #d4af37; font-weight: bold;">✓ Current Tier</div>` : ""}
+            </div>
+          </div>
+        `,
+          )
+          .join("");
+
+        vipRoot.innerHTML = `
+          <div class="vip-container">
+            <!-- Header -->
+            <div class="vip-header">
+              <div class="vip-title">🏛️ VIP CLUB</div>
+              <div class="vip-subtitle">Welcome to Exclusive Premium Benefits</div>
+            </div>
+
+            <!-- VIP Stats -->
+            <div class="vip-stats">
+              <div class="vip-stat-card">
+                <div class="vip-stat-label">Current Rank</div>
+                <div class="vip-stat-value">${vipInfo.title}</div>
+                <div class="vip-rank-display">VIP Level ${vipInfo.rank}</div>
+              </div>
+              <div class="vip-stat-card">
+                <div class="vip-stat-label">Total Spent</div>
+                <div class="vip-stat-value">${totalSpent.toLocaleString("vi-VN")}</div>
+                <div class="vip-rank-display">đ</div>
+              </div>
+              <div class="vip-stat-card">
+                <div class="vip-stat-label">Current Balance</div>
+                <div class="vip-stat-value">${balance.toLocaleString("vi-VN")}</div>
+                <div class="vip-rank-display">đ</div>
+              </div>
+              <div class="vip-stat-card">
+                <div class="vip-stat-label">Daily Reward</div>
+                <div class="vip-stat-value">${vipInfo.dailyGift.toLocaleString("vi-VN")}</div>
+                <div class="vip-rank-display">đ</div>
+              </div>
+              <div class="vip-stat-card">
+                <div class="vip-stat-label" id="vip-expiry-label">VIP Expiration</div>
+                <div class="vip-stat-value" id="vip-countdown" style="font-size: 1rem;">${isPermanent(userData.vipExpiration) || userData.vipLevel === 10 ? "♾️ Sở hữu Vĩnh Viễn" : new Date(userData.vipExpiration) > new Date() ? formatCountdown(new Date(userData.vipExpiration)) : "❌ Hết Hạn"}</div>
+                <div class="vip-rank-display" id="vip-aura" style="color: ${isPermanent(userData.vipExpiration) || userData.vipLevel === 10 ? "#bf00ff" : new Date(userData.vipExpiration) - new Date() < 3 * 24 * 60 * 60 * 1000 ? "#ff0000" : "#d4af37"};">
+                  ${isPermanent(userData.vipExpiration) || userData.vipLevel === 10 ? "👑 Elite Patron" : new Date(userData.vipExpiration) - new Date() < 3 * 24 * 60 * 60 * 1000 ? "⚠️ Sắp Hết" : "✓ Active"}
+                </div>
+              </div>
+            </div>
+
+            <!-- VIP Shop Packages (Buy Packages) -->
+            <div class="vip-shop-section" style="margin: 3rem 0; background: linear-gradient(135deg, rgba(95, 0, 150, 0.15), rgba(60, 0, 100, 0.1)); border-radius: 20px; padding: 2.5rem; border: 2px solid rgba(191, 0, 255, 0.2);">
+              <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 1.8rem; font-weight: 900; color: #d4af37; margin-bottom: 0.5rem;">💎 NÂNG CẤP NGAY 💎</div>
+                <div style="color: rgba(245, 241, 230, 0.7);">Chọn gói VIP phù hợp và bắt đầu hưởng lợi ích cao cấp</div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+                <!-- Gói Vàng -->
+                <div style="background: rgba(212, 175, 55, 0.1); border: 2px solid rgba(212, 175, 55, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
+                  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏆</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; color: #d4af37; margin-bottom: 0.5rem;">Gói Vàng</div>
+                  <div style="color: rgba(245, 241, 230, 0.6); font-size: 0.9rem; margin-bottom: 1rem;">1 Tháng</div>
+                  <div style="font-size: 2rem; font-weight: 900; color: #f4d03f; margin-bottom: 1rem;">₫99,000</div>
+                  <ul style="text-align: left; font-size: 0.95rem; color: rgba(245, 241, 230, 0.8); margin-bottom: 1.5rem; list-style: none; padding: 0;">
+                    <li style="margin-bottom: 0.5rem;">✓ Lên VIP Level 1</li>
+                    <li style="margin-bottom: 0.5rem;">✓ 5% Giảm Giá</li>
+                    <li style="margin-bottom: 0.5rem;">✓ Quà Hàng Ngày</li>
+                  </ul>
+                  <button id="monthly-btn" onclick="window.purchaseVipPackage('monthly')" style="width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #d4af37, #f4d03f); color: #0a0a0b; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem;">Mua Ngay</button>
+                </div>
+                
+                <!-- Gói Kim Cương -->
+                <div style="background: rgba(208, 129, 190, 0.1); border: 2px solid rgba(208, 129, 190, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
+                  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💎</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; color: #d081be; margin-bottom: 0.5rem;">Gói Kim Cương</div>
+                  <div style="color: rgba(245, 241, 230, 0.6); font-size: 0.9rem; margin-bottom: 1rem;">6 Tháng</div>
+                  <div style="font-size: 2rem; font-weight: 900; color: #d081be; margin-bottom: 1rem;">₫500,000</div>
+                  <ul style="text-align: left; font-size: 0.95rem; color: rgba(245, 241, 230, 0.8); margin-bottom: 1.5rem; list-style: none; padding: 0;">
+                    <li style="margin-bottom: 0.5rem;">✓ Lên VIP Level 3</li>
+                    <li style="margin-bottom: 0.5rem;">✓ 10% Giảm Giá</li>
+                    <li style="margin-bottom: 0.5rem;">✓ Quà Cao Cấp</li>
+                  </ul>
+                  <button id="sixmonth-btn" onclick="window.purchaseVipPackage('sixmonth')" style="width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #d081be, #9b59b6); color: #f5f1e6; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem;">Mua Ngay</button>
+                </div>
+                
+                <!-- Gói Vĩnh Viễn (PREMIUM) - ✅ Highlight with gold border for VIP 10 -->
+                <div style="background: rgba(191, 0, 255, 0.15); border: 3px solid ${vipInfo.rank >= 10 ? "#d4af37" : "#bf00ff"}; border-radius: 16px; padding: 1.5rem; text-align: center; box-shadow: 0 0 ${vipInfo.rank >= 10 ? "40px rgba(212, 175, 55, 0.4)" : "30px rgba(191, 0, 255, 0.2)"}; transition: all 0.3s ease;">
+                  ${vipInfo.rank >= 10 ? '<div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #d4af37, #f4d03f); padding: 0.3rem 1rem; border-radius: 20px; font-weight: 900; font-size: 0.9rem; color: #0a0a0b;">🏆 ELITE PATRON 🏆</div>' : ""}
+                  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👑</div>
+                  <div style="font-size: 1.4rem; font-weight: 700; color: ${vipInfo.rank >= 10 ? "#d4af37" : "#bf00ff"}; margin-bottom: 0.5rem;">Gói Vĩnh Viễn</div>
+                  <div style="color: rgba(245, 241, 230, 0.6); font-size: 0.9rem; margin-bottom: 1rem;">Sở Hữu Vĩnh Viễn</div>
+                  <div style="font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #bf00ff, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem;">₫5,000,000</div>
+                  <ul style="text-align: left; font-size: 0.95rem; color: rgba(245, 241, 230, 0.8); margin-bottom: 1rem; list-style: none; padding: 0;">
+                    <li style="margin-bottom: 0.5rem;">✓ Lên VIP Level 5+ (Max: VIP 10)</li>
+                    <li style="margin-bottom: 0.5rem;">✓ 20% Giảm Giá</li>
+                    <li style="margin-bottom: 0.5rem;">✓ 👑 Vương Miện Thạch Anh Tím</li>
+                    <li style="margin-bottom: 0.5rem; color: #d4af37;">✓ Bảng Vàng Elite Patrons!</li>
+                  </ul>
+                  <button id="legendary-btn" onclick="${vipInfo.rank >= 10 ? "return false;" : "window.purchaseVipPackage('legendary')"}" style="width: 100%; padding: 0.8rem; background: ${vipInfo.rank >= 10 ? "linear-gradient(135deg, #d4af37, #f4d03f)" : "linear-gradient(135deg, #bf00ff, #ff00ff)"}; color: ${vipInfo.rank >= 10 ? "#0a0a0b" : "#f5f1e6"}; border: 3px solid ${vipInfo.rank >= 10 ? "#d4af37" : "#bf00ff"}; border-radius: 8px; font-weight: 700; cursor: ${vipInfo.rank >= 10 ? "default" : "pointer"}; font-size: 1rem; box-shadow: 0 0 ${vipInfo.rank >= 10 ? "30px rgba(212, 175, 55, 0.3)" : "20px rgba(191, 0, 255, 0.5)"}; opacity: ${vipInfo.rank >= 10 ? "1" : "1"}; transition: all 0.3s ease;">
+                    ${vipInfo.rank >= 10 ? "✓ ĐÃ SỞ HỮU VĨNH VIỄN" : "💰 Mua Trọn Đời"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress Bar to Next Tier -->
+            ${
+              vipInfo.rank < 10
+                ? `
+              <div class="vip-progress-section">
+                <div class="vip-progress-label">
+                  <span>👑 VIP ${vipInfo.rank} → VIP ${vipInfo.rank + 1}</span>
+                  <span id="progress-percent">${progressPercent.toFixed(1)}%</span>
+                </div>
+                <div class="vip-progress-container">
+                  <div class="vip-progress-fill" style="width: ${progressPercent}%;"></div>
+                </div>
+                <div class="vip-progress-label" style="margin-top: 0.5rem; font-size: 0.8rem; justify-content: flex-end;">
+                  Need ${new Intl.NumberFormat("vi-VN").format(needMore)}đ more
+                </div>
+              </div>
+            `
+                : `
+              <div class="vip-progress-section" style="text-align: center; background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3);">
+                <div style="font-size: 1.5rem; color: #34d399; font-weight: bold;">🎉 Maximum VIP Level Reached!</div>
+                <div style="color: #888; margin-top: 0.5rem;">You're at the highest VIP tier with all premium benefits unlocked</div>
+              </div>
+            `
+            }
+
+            <!-- Daily Gift Section -->
+            <div class="vip-gift-section">
+              <div class="vip-gift-title">🎁 Daily VIP Reward</div>
+              <div class="vip-gift-amount">${vipInfo.dailyGift.toLocaleString("vi-VN")}đ</div>
+              <button id="claim-gift-btn" class="vip-gift-button" ${vipFull.canClaimGift ? "" : "disabled"}>
+                ${vipFull.canClaimGift ? "Claim Now" : "Already Claimed"}
+              </button>
+              <div class="vip-gift-cooldown">
+                ${vipFull.canClaimGift ? "Claim once every 24 hours" : `Next claim in: <span id="gift-countdown">--:--:--</span>`}
+              </div>
+            </div>
+
+            <!-- All VIP Tiers -->
+            <div class="vip-tiers-section">
+              <div class="vip-tiers-title">VIP Tier Benefits</div>
+              <div class="vip-tiers-grid">
+                ${tierCardsHTML}
+              </div>
+            </div>
+
+            <!-- VIP Exclusive Store -->
+            <div class="vip-products-section" style="display: flex; flex-direction: column; gap: 1rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div class="vip-products-title">✨ VIP Exclusive Store</div>
+                <a href="vip-products.html" class="vip-gift-button" style="background: #d4af37; color: #000; padding: 0.85rem 1.25rem; border-radius: 999px; text-decoration: none; font-weight: 700;">Go to VIP Store</a>
+              </div>
+              <div id="vip-products-grid" class="vip-products-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+                <div style="grid-column: 1/-1; text-align: center; color: #888; padding: 3rem 1rem;">Loading VIP products...</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Add claim gift handler
+        const claimBtn = vipRoot.querySelector("#claim-gift-btn");
+        if (claimBtn && vipFull.canClaimGift) {
+          claimBtn.addEventListener("click", async () => {
+            try {
+              claimBtn.disabled = true;
+              claimBtn.textContent = "Claiming...";
+
+              const result = await claimDailyVIPGift(auth.currentUser.uid);
+
+              if (result.success) {
+                toastSuccess(result.message);
+
+                // Reload page to update UI
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              } else {
+                toastInfo(result.message);
+                claimBtn.disabled = false;
+                claimBtn.textContent = "Claim Now";
+              }
+            } catch (error) {
+              console.error("Claim gift error:", error);
+              toastError("Failed to claim gift");
+              claimBtn.disabled = false;
+              claimBtn.textContent = "Claim Now";
+            }
+          });
+        }
+
+        // ===== BUTTON HANDLERS FOR ALL VIP PACKAGES =====
+        // Store user data for countdown updates
+        window.currentUserData = userData;
+
+        // Handle all three purchase buttons
+        const monthlyBtn = vipRoot.querySelector("#monthly-btn");
+        const sixmonthBtn = vipRoot.querySelector("#sixmonth-btn");
+        const legendaryBtn = vipRoot.querySelector("#legendary-btn");
+
+        // Helper function to disable button for VIP 10 or Permanent status
+        const handleVip10Button = (btn, packageName) => {
+          if (!btn) return;
+
+          const isVip10 = vipInfo.rank >= 10;
+          const isPermanent = userData.isPermanent === true;
+
+          // ✅ Disable if EITHER:
+          // - User is VIP 10 (any rank 10+)
+          // - User has permanent status (purchased Legendary)
+          if (isVip10 || isPermanent) {
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            btn.style.cursor = "not-allowed";
+            btn.textContent = "✓ ĐÃ SỞ HỮU VĨNH VIỄN";
+            btn.style.background = "rgba(155, 89, 182, 0.4)";
+            btn.style.color = "#d4af37";
+            console.log(
+              `✅ Button disabled: vipRank=${vipInfo.rank}, isPermanent=${isPermanent}`,
+            );
+          }
+        };
+
+        // Apply VIP 10 handling to all buttons
+        handleVip10Button(monthlyBtn, "Gói Vàng");
+        handleVip10Button(sixmonthBtn, "Gói Kim Cương");
+        handleVip10Button(legendaryBtn, "Gói Vĩnh Viễn");
+
+        // Real-time countdown timer
+        if (!vipFull.canClaimGift && vipFull.lastClaimedGift) {
+          const countdownElement = vipRoot.querySelector("#gift-countdown");
+          if (countdownElement) {
+            const updateCountdown = () => {
+              const nextClaimTime = new Date(
+                vipFull.lastClaimedGift.getTime() + 24 * 60 * 60 * 1000,
+              );
+              const now = new Date();
+              const timeLeft = Math.max(0, nextClaimTime - now);
+
+              if (timeLeft <= 0) {
+                countdownElement.textContent = "00:00:00";
+                window.location.reload(); // Auto-refresh when timer expires
+                return;
+              }
+
+              const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+              const minutes = Math.floor(
+                (timeLeft % (1000 * 60 * 60)) / (1000 * 60),
+              );
+              const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+              countdownElement.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+            };
+
+            updateCountdown(); // Initial update
+            const timerInterval = setInterval(updateCountdown, 1000);
+
+            // Cleanup on page unload
+            window.addEventListener("beforeunload", () =>
+              clearInterval(timerInterval),
+            );
+          }
+        }
+
+        // Load VIP products
+        loadVIPProducts(vipInfo.rank);
+      }
+
+      async function loadVIPProducts(userVipLevel) {
+        const { collection, query, where, getDocs } =
+          await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+        try {
+          const productsGrid = document.getElementById("vip-products-grid");
+          if (!productsGrid) return;
+
+          // Fetch all VIP-only products
+          const q = query(
+            collection(db, "products"),
+            where("isVIPOnly", "==", true),
+          );
+          const snapshot = await getDocs(q);
+
+          const products = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
+            .filter((p) => p.requiredVIP <= userVipLevel)
+            .slice(0, 30);
+
+          if (products.length === 0) {
+            productsGrid.innerHTML =
+              '<div style="grid-column: 1/-1; text-align: center; color: #888; padding: 3rem 1rem;">Upgrade to higher VIP level to unlock exclusive products!</div>';
+            return;
+          }
+
+          const productsHTML = products
+            .map((product) => {
+              const isLocked = product.requiredVIP > userVipLevel;
+              return `
+            <div class="vip-product-card ${isLocked ? "is-locked" : ""}">
+              <div class="vip-product-image">
+                ${product.image ? `<img src="${product.image}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;">` : "☕"}
+              </div>
+              ${isLocked ? `<div class="lock-overlay"><div>🔒</div><div>VIP ${product.requiredVIP}+</div></div>` : ""}
+              <div class="vip-product-info">
+                <div class="vip-product-name">${product.name}</div>
+                <div style="color: #888; font-size: 12px; margin: 0.5rem 0; height: 32px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                  ${product.description || ""}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
+                  <div class="vip-product-price">${Number(product.price || 0).toLocaleString("vi-VN")}đ</div>
+                  ${product.discount > 0 ? `<span style="background: #ff4757; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">-${product.discount}%</span>` : ""}
+                </div>
+              </div>
+            </div>
+          `;
+            })
+            .join("");
+
+          productsGrid.innerHTML = productsHTML;
+        } catch (error) {
+          console.error("Error loading VIP products:", error);
+          const productsGrid = document.getElementById("vip-products-grid");
+          if (productsGrid) {
+            productsGrid.innerHTML =
+              '<div style="grid-column: 1/-1; text-align: center; color: #f44336; padding: 2rem;">Error loading VIP products</div>';
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

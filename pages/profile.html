@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profile | Gilded Bean</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/pages/profile-premium.css" />
+
+    <!-- Preload Firebase scripts for instant loading -->
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+      as="script"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      as="script"
+      crossorigin
+    />
+
+    <!-- Instant.page for instant navigation on hover -->
+    <script src="https://instant.page/5.2.0" type="module"></script>
+    <style>
+      .logout-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 2500;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-base) var(--easing-smooth);
+      }
+
+      .logout-modal.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .logout-modal .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 10, 11, 0.78);
+        backdrop-filter: blur(10px);
+      }
+
+      .logout-modal .modal-content {
+        position: relative;
+        width: min(100%, 420px);
+        background: linear-gradient(
+          135deg,
+          rgba(18, 18, 20, 0.92),
+          rgba(28, 28, 30, 0.88)
+        );
+        border: 1px solid rgba(212, 175, 55, 0.24);
+        border-radius: 24px;
+        padding: 28px;
+        text-align: center;
+        box-shadow: var(--shadow-xl), var(--glow-gold);
+        backdrop-filter: blur(24px);
+        transform: translateY(24px) scale(0.96);
+        transition: transform var(--transition-base) var(--easing-smooth);
+      }
+
+      .logout-modal.open .modal-content {
+        transform: translateY(0) scale(1);
+      }
+
+      .logout-modal h3 {
+        margin: 0 0 12px;
+        color: var(--color-metallic-gold);
+        font-size: 1.5rem;
+      }
+
+      .logout-modal p {
+        margin: 0;
+        color: var(--color-text-secondary);
+      }
+
+      .countdown-display {
+        width: 72px;
+        height: 72px;
+        margin: 24px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(212, 175, 55, 0.28);
+        background: radial-gradient(
+          circle,
+          rgba(212, 175, 55, 0.18) 0%,
+          rgba(255, 255, 255, 0.04) 70%
+        );
+        color: var(--color-metallic-gold);
+        font-size: 1.9rem;
+        font-weight: 700;
+        box-shadow: inset 0 0 24px rgba(212, 175, 55, 0.08);
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .btn-confirm-logout,
+      .btn-cancel-logout {
+        flex: 1;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all var(--transition-fast) var(--easing-primary);
+      }
+
+      .btn-confirm-logout {
+        background: linear-gradient(135deg, var(--color-error), #d9363e);
+        color: var(--color-text-primary);
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-confirm-logout.active {
+        opacity: 1;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(255, 77, 79, 0.28);
+      }
+
+      .btn-cancel-logout {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-primary);
+        border-color: rgba(212, 175, 55, 0.18);
+      }
+
+      .btn-cancel-logout:hover,
+      .btn-confirm-logout.active:hover {
+        transform: translateY(-1px);
+      }
+
+      /* ===== VIP SUBSCRIPTION MODAL ===== */
+      .vip-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 2600;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition-base) var(--easing-smooth);
+      }
+
+      .vip-modal.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .vip-modal .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 10, 11, 0.8);
+        backdrop-filter: blur(10px);
+      }
+
+      .vip-modal .modal-content {
+        position: relative;
+        width: min(100%, 900px);
+        background: linear-gradient(
+          135deg,
+          rgba(18, 18, 20, 0.95),
+          rgba(28, 28, 30, 0.92)
+        );
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 20px;
+        padding: 40px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .vip-modal-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .vip-modal-header h2 {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #d4af37, #f4d03f);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0 0 8px;
+      }
+
+      .vip-modal-header p {
+        color: var(--color-text-secondary);
+        margin: 0;
+      }
+
+      .vip-packages {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .package-card {
+        background: rgba(42, 27, 18, 0.6);
+        border: 1px solid rgba(212, 175, 55, 0.1);
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .package-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(212, 175, 55, 0.1),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .package-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--color-gold);
+        box-shadow: 0 20px 40px rgba(212, 175, 55, 0.15);
+      }
+
+      .package-card:hover::before {
+        opacity: 1;
+      }
+
+      /* Special glow for 5M package */
+      .package-card.premium {
+        border: 2px solid rgba(212, 175, 55, 0.4);
+        box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+      }
+
+      .package-card.premium:hover {
+        box-shadow:
+          0 0 50px rgba(212, 175, 55, 0.3),
+          0 20px 40px rgba(212, 175, 55, 0.2);
+        animation: goldGlow 0.6s ease;
+      }
+
+      @keyframes goldGlow {
+        0%,
+        100% {
+          box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+        }
+        50% {
+          box-shadow: 0 0 60px rgba(212, 175, 55, 0.4);
+        }
+      }
+
+      .package-icon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+      }
+
+      .package-name {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: 8px;
+      }
+
+      .package-duration {
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
+        margin-bottom: 12px;
+      }
+
+      .package-price {
+        font-size: 1.8rem;
+        color: var(--color-gold);
+        font-weight: 700;
+        margin-bottom: 16px;
+      }
+
+      .package-benefits {
+        text-align: left;
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        margin-bottom: 20px;
+        min-height: 80px;
+      }
+
+      .package-benefits li {
+        margin-bottom: 6px;
+      }
+
+      .package-benefits li::before {
+        content: "✓ ";
+        color: var(--color-gold);
+      }
+
+      .btn-buy-package {
+        width: 100%;
+        padding: 12px;
+        background: rgba(212, 175, 55, 0.15);
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        color: var(--color-gold);
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-buy-package:hover {
+        background: rgba(212, 175, 55, 0.25);
+        border-color: var(--color-gold);
+      }
+
+      .btn-buy-package.premium {
+        background: linear-gradient(
+          135deg,
+          rgba(212, 175, 55, 0.3),
+          rgba(244, 208, 63, 0.15)
+        );
+        border: 1px solid var(--color-gold);
+        color: #f4d03f;
+        box-shadow: 0 0 20px rgba(244, 208, 63, 0.15);
+      }
+
+      .btn-buy-package.premium:hover {
+        box-shadow: 0 0 30px rgba(244, 208, 63, 0.25);
+      }
+
+      .vip-modal-footer {
+        text-align: center;
+        padding-top: 20px;
+        border-top: 1px solid rgba(212, 175, 55, 0.1);
+      }
+
+      .close-vip-modal {
+        background: none;
+        border: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        font-size: 1.5rem;
+        padding: 0;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        transition: color 0.2s ease;
+      }
+
+      .close-vip-modal:hover {
+        color: var(--color-gold);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+
+    <!-- Floating Particles Background -->
+    <div class="floating-particles" id="floating-particles"></div>
+
+    <!-- Main Profile Dashboard -->
+    <main class="profile-main">
+      <div class="profile-dashboard">
+        <!-- LEFT: Holographic Member Card -->
+        <div class="member-card-section">
+          <div class="holographic-card" id="member-card">
+            <div class="card-header">
+              <div class="crown-icon">👑</div>
+              <div class="card-title">VIP MEMBER</div>
+            </div>
+            <div class="avatar-section">
+              <div class="avatar-container">
+                <div class="avatar" id="user-avatar">👤</div>
+                <div class="avatar-glow"></div>
+              </div>
+            </div>
+            <div class="user-info">
+              <div class="user-name" id="user-name">Loading...</div>
+              <div class="user-email" id="user-email">Loading...</div>
+            </div>
+            <div class="vip-level-display">
+              <div class="level-badge" id="vip-level-badge">VIP 0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Settings & Form Section -->
+        <div class="settings-section">
+          <div class="glass-container">
+            <h3 class="settings-title">Account Settings</h3>
+
+            <!-- Personal Information Form -->
+            <div class="profile-section">
+              <div class="section-header">
+                <div class="section-title">👤 Personal Information</div>
+              </div>
+
+              <form id="profile-form" class="profile-form">
+                <div class="form-group">
+                  <label class="form-label" for="email-input"
+                    >Email Address</label
+                  >
+                  <input
+                    type="email"
+                    id="email-input"
+                    class="form-input"
+                    readonly
+                    placeholder="Your email"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="name-input">Full Name</label>
+                  <input
+                    type="text"
+                    id="name-input"
+                    class="form-input"
+                    placeholder="Enter your full name"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="phone-input"
+                    >Phone Number</label
+                  >
+                  <input
+                    type="tel"
+                    id="phone-input"
+                    class="form-input"
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="address-input"
+                    >Delivery Address</label
+                  >
+                  <input
+                    type="text"
+                    id="address-input"
+                    class="form-input"
+                    placeholder="Enter your delivery address"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="avatar-input"
+                    >Profile Picture</label
+                  >
+                  <div class="file-input-container">
+                    <input
+                      type="file"
+                      id="avatar-input"
+                      class="file-input"
+                      accept="image/*"
+                    />
+                    <label for="avatar-input" class="file-input-label">
+                      <span>📷</span> Choose Profile Picture
+                    </label>
+                  </div>
+                  <div class="info-text">
+                    Upload a new profile picture (max 5MB)
+                  </div>
+                </div>
+
+                <div class="action-buttons">
+                  <button type="button" id="save-changes-btn" class="btn-save">
+                    <span>💾</span> Save Changes
+                  </button>
+                </div>
+              </form>
+
+              <!-- Logout Section -->
+              <div class="logout-section">
+                <button id="logout-btn" class="logout-btn">
+                  <span>🚪</span> Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- VIP Subscription Modal -->
+    <div class="vip-modal" id="vip-modal">
+      <div class="modal-overlay" id="vip-overlay"></div>
+      <div class="modal-content">
+        <button class="close-vip-modal" id="close-vip-modal">✕</button>
+
+        <div class="vip-modal-header">
+          <h2>✨ Nâng Cấp Đẳng Cấp VIP</h2>
+          <p>Kích hoạt Thẻ Hội Viên Tinh Anh để mở khóa các đặc quyền</p>
+        </div>
+
+        <div class="vip-packages">
+          <!-- VÀNG Package -->
+          <div class="package-card" data-package="monthly">
+            <div class="package-icon">🏆</div>
+            <div class="package-name">Gói Vàng</div>
+            <div class="package-duration">1 Tháng</div>
+            <div class="package-price">₫99,000</div>
+            <ul class="package-benefits">
+              <li>Lên VIP Level 1</li>
+              <li>Nhận Quà Hàng Ngày</li>
+              <li>Giảm Giá Cơ Bản</li>
+              <li>Ưu Tiên Phục Vụ</li>
+            </ul>
+            <button
+              class="btn-buy-package"
+              onclick="purchaseVipPackage('monthly')"
+            >
+              Mua Ngay
+            </button>
+          </div>
+
+          <!-- KIM CƯƠNG Package -->
+          <div class="package-card" data-package="sixmonth">
+            <div class="package-icon">💎</div>
+            <div class="package-name">Gói Kim Cương</div>
+            <div class="package-duration">6 Tháng</div>
+            <div class="package-price">₫500,000</div>
+            <ul class="package-benefits">
+              <li>Lên VIP Level 3</li>
+              <li>Giảm Giá 10%</li>
+              <li>Quà Cao Cấp</li>
+              <li>Sản Phẩm Giới Hạn</li>
+            </ul>
+            <button
+              class="btn-buy-package"
+              onclick="purchaseVipPackage('sixmonth')"
+            >
+              Mua Ngay
+            </button>
+          </div>
+
+          <!-- VĨNH VIỄN Package (Premium) -->
+          <div class="package-card premium" data-package="legendary">
+            <div class="package-icon">👑</div>
+            <div class="package-name">Gói Vĩnh Viễn</div>
+            <div class="package-duration">Trọn Đời</div>
+            <div class="package-price">₫5,000,000</div>
+            <ul class="package-benefits">
+              <li>Lên VIP Level 5</li>
+              <li>Giảm Giá 20%</li>
+              <li>Mỗi Tháng Quà 🎁</li>
+              <li>Mọi Đặc Quyền</li>
+            </ul>
+            <button
+              class="btn-buy-package premium"
+              onclick="purchaseVipPackage('legendary')"
+            >
+              💰 Mua Trọn Đời
+            </button>
+          </div>
+        </div>
+
+        <div class="vip-modal-footer">
+          <p
+            style="font-size: 0.9rem; color: var(--color-text-muted); margin: 0"
+          >
+            Hủy bất kỳ lúc nào. Không có phí ẩn.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div class="logout-modal" id="logout-modal">
+      <div class="modal-overlay" id="logout-overlay"></div>
+      <div class="modal-content">
+        <h3>Confirm Sign Out?</h3>
+        <p>You will be signed out of the application.</p>
+        <div class="countdown-display" id="countdown">3</div>
+        <div class="modal-actions">
+          <button class="btn-confirm-logout" id="confirm-logout">
+            Sign Out
+          </button>
+          <button class="btn-cancel-logout" id="cancel-logout">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <!-- Main Script -->
+    <script type="module">
+      // ===== IMPORTS =====
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import { initRender } from "../js/core/render.js";
+      import { renderMemberRankBadge } from "../js/pages/profile.js";
+      import { initNavbar } from "../js/components/navbar.js";
+      import { initCart } from "../js/components/cart.js";
+      import {
+        toastError,
+        toastSuccess,
+      } from "../js/services/toast.service.js";
+      import {
+        auth,
+        saveUserProfile,
+        logoutUser,
+        uploadAvatar,
+      } from "../js/services/firebase.service.js";
+      import store from "../js/store/index.js";
+      import { closeVipModal } from "../js/services/vip.service.js";
+
+      // ===== DOM ELEMENTS (Declared Once) =====
+      // Form Input Elements
+      const emailInput = document.getElementById("email-input");
+      const nameInput = document.getElementById("name-input");
+      const phoneInput = document.getElementById("phone-input");
+      const addressInput = document.getElementById("address-input");
+      const avatarInput = document.getElementById("avatar-input");
+      const saveChangesBtn = document.getElementById("save-changes-btn");
+
+      // Card Display Elements
+      const userNameEl = document.getElementById("user-name");
+      const userEmailEl = document.getElementById("user-email");
+      const userAvatarEl = document.getElementById("user-avatar");
+      const vipLevelBadge = document.getElementById("vip-level-badge");
+
+      // Modal & Logout Elements
+      const logoutBtn = document.getElementById("logout-btn");
+      const logoutModal = document.getElementById("logout-modal");
+      const logoutOverlay = document.getElementById("logout-overlay");
+      const countdownEl = document.getElementById("countdown");
+      const confirmLogoutBtn = document.getElementById("confirm-logout");
+      const cancelLogoutBtn = document.getElementById("cancel-logout");
+
+      // ===== STATE VARIABLES =====
+      let currentUser = null;
+      let currentAvatarUrl = "";
+      let isUploading = false;
+      let countdownInterval = null;
+
+      // ===== INITIALIZATION =====
+      initRender();
+
+      // ✅ FIX: Wait for auth to be ready BEFORE calling loadProfileData
+      // This prevents redirect loops from undefined user state
+      initializeAuth()
+        .then(() => {
+          console.log("✅ Auth initialized successfully!");
+
+          // ⏳ Wait for SET_AUTH_READY to be dispatched in store
+          // This ensures userData is loaded from Firestore
+          const waitForAuthReady = new Promise((resolve) => {
+            const state = store.getState();
+            const isAuthReady = state.auth?.isAuthReady || false;
+
+            if (isAuthReady) {
+              console.log("✅ Auth ready in store - loadProfileData ngay");
+              resolve();
+            } else {
+              console.log("⏳ Chờ auth ready state...");
+              let resolved = false;
+              const unsubscribe = store.subscribe(() => {
+                if (resolved) return;
+                const updatedState = store.getState();
+                if (updatedState.auth?.isAuthReady) {
+                  console.log(
+                    "✅ Auth ready state dispatch - loadProfileData ngay",
+                  );
+                  resolved = true;
+                  unsubscribe();
+                  resolve();
+                }
+              });
+
+              // Timeout sau 3 giây (tránh stuck)
+              setTimeout(() => {
+                if (!resolved) {
+                  console.warn("⚠️ Auth ready timeout - proceed anyway");
+                  resolved = true;
+                  unsubscribe();
+                  resolve();
+                }
+              }, 3000);
+            }
+          });
+
+          // Sau khi auth sẵn sàng, mới loadProfileData
+          return waitForAuthReady;
+        })
+        .then(() => {
+          // ✅ CRITICAL: Check currentUser từ auth (persisted by Firebase)
+          // Nếu không có -> redirect to login
+          if (!auth.currentUser) {
+            console.warn("❌ No auth.currentUser - redirect to login");
+            window.location.href = "login.html";
+            return;
+          }
+
+          console.log("✅ Auth currentUser confirmed:", auth.currentUser.email);
+          loadProfileData();
+          renderMemberRankBadge();
+
+          // CRITICAL: Check ?openVip=true and auto-open modal
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("openVip") === "true") {
+            setTimeout(() => {
+              const vipModal = document.getElementById("vip-modal");
+              if (vipModal) {
+                vipModal.classList.add("open");
+                window.history.replaceState(
+                  {},
+                  document.title,
+                  window.location.pathname,
+                );
+              }
+            }, 500);
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Auth initialization failed:", error);
+          toastError("Failed to load profile");
+        });
+
+      initNavbar();
+      initCart();
+
+      // ===== VIP MODAL HANDLERS (Moved from profile.js) =====
+      const vipModal = document.getElementById("vip-modal");
+      const vipOverlay = document.getElementById("vip-overlay");
+      const closeVipModalBtn = document.getElementById("close-vip-modal");
+
+      if (closeVipModalBtn) {
+        closeVipModalBtn.addEventListener("click", closeVipModal);
+      }
+      if (vipOverlay) {
+        vipOverlay.addEventListener("click", closeVipModal);
+      }
+
+      // ===== CORE FUNCTIONS =====
+
+      /**
+       * Load profile data from Firestore
+       */
+      function loadProfileData() {
+        if (!auth.currentUser) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        currentUser = auth.currentUser;
+        const userData = store.getState().user.data || {};
+
+        // Populate form inputs
+        emailInput.value = currentUser.email || "";
+        nameInput.value = userData.name || "";
+        phoneInput.value = userData.phone || "";
+        addressInput.value = userData.address || "";
+        currentAvatarUrl = userData.avatar || "";
+
+        // Update card display
+        updateCardDisplay(userData);
+      }
+
+      /**
+       * Update both card and form display with current user data
+       */
+      function updateCardDisplay(userData) {
+        // Update card left side
+        if (userNameEl) {
+          userNameEl.textContent = userData.name || "User";
+        }
+        if (userEmailEl) {
+          userEmailEl.textContent = currentUser?.email || "";
+        }
+
+        // Update avatar display
+        if (currentAvatarUrl) {
+          userAvatarEl.innerHTML = `<img src="${currentAvatarUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
+        } else {
+          const firstLetter = (userData.name || "U").charAt(0).toUpperCase();
+          userAvatarEl.innerHTML = firstLetter;
+        }
+
+        // Update form inputs with latest data
+        nameInput.value = userData.name || "";
+        phoneInput.value = userData.phone || "";
+        addressInput.value = userData.address || "";
+      }
+
+      /**
+       * Avatar file selection handler
+       */
+      avatarInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+          toastError("File size must be less than 5MB");
+          avatarInput.value = "";
+          return;
+        }
+
+        console.log("📷 Avatar selected:", file.name);
+      });
+
+      /**
+       * Save Changes button handler - SECURITY: Only name, phone, address, avatar
+       */
+      saveChangesBtn.addEventListener("click", async () => {
+        if (!currentUser || isUploading) return;
+
+        isUploading = true;
+        saveChangesBtn.disabled = true;
+
+        const updates = {
+          name: nameInput.value.trim(),
+          phone: phoneInput.value.trim(),
+          address: addressInput.value.trim(),
+        };
+
+        // Validate at least one field has changed
+        const userData = store.getState().user.data || {};
+        const hasChanges =
+          updates.name !== userData.name ||
+          updates.phone !== userData.phone ||
+          updates.address !== userData.address ||
+          avatarInput.files.length > 0;
+
+        if (!hasChanges) {
+          toastError("No changes to save");
+          isUploading = false;
+          saveChangesBtn.disabled = false;
+          return;
+        }
+
+        try {
+          // Handle avatar upload if selected
+          if (avatarInput.files.length > 0) {
+            const file = avatarInput.files[0];
+            console.log("⬆️ Uploading avatar...");
+            const avatarUrl = await uploadAvatar(file, currentUser.uid);
+            updates.avatar = avatarUrl;
+            currentAvatarUrl = avatarUrl;
+            console.log("✅ Avatar uploaded:", avatarUrl);
+          }
+
+          // Save profile to Firestore (SECURITY: Only these fields)
+          console.log("💾 Saving profile:", updates);
+          await saveUserProfile(currentUser.uid, updates);
+          console.log("✅ Profile saved successfully!");
+
+          // Update store
+          store.dispatch({
+            type: "USER/SET_USER",
+            payload: {
+              ...userData,
+              ...updates,
+            },
+          });
+
+          // Update UI immediately
+          updateCardDisplay({ ...userData, ...updates });
+
+          // Clear file input
+          avatarInput.value = "";
+
+          toastSuccess("Profile updated successfully!");
+        } catch (error) {
+          console.error("❌ Save failed:", error);
+          toastError("Failed to save changes: " + error.message);
+        } finally {
+          isUploading = false;
+          saveChangesBtn.disabled = false;
+        }
+      });
+
+      /**
+       * Logout button handler
+       */
+      logoutBtn.addEventListener("click", () => {
+        console.log("🚪 Logout initiated");
+        logoutModal.classList.add("open");
+        let countdown = 3;
+        countdownEl.textContent = countdown;
+        confirmLogoutBtn.classList.remove("active");
+        confirmLogoutBtn.disabled = true;
+
+        // Clear any existing countdown interval
+        if (countdownInterval) clearInterval(countdownInterval);
+
+        countdownInterval = setInterval(() => {
+          countdown--;
+          countdownEl.textContent = countdown;
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            confirmLogoutBtn.classList.add("active");
+            confirmLogoutBtn.disabled = false;
+            console.log("🔓 Logout button activated");
+          }
+        }, 1000);
+      });
+
+      /**
+       * Confirm logout handler
+       */
+      confirmLogoutBtn.addEventListener("click", async () => {
+        try {
+          console.log("🔓 Logging out...");
+          if (countdownInterval) clearInterval(countdownInterval);
+          await logoutUser();
+          console.log("✅ Logged out successfully!");
+          window.location.href = "login.html";
+        } catch (error) {
+          console.error("❌ Logout failed:", error);
+          toastError("Failed to sign out");
+        }
+      });
+
+      /**
+       * Cancel logout handler
+       */
+      cancelLogoutBtn.addEventListener("click", () => {
+        logoutModal.classList.remove("open");
+        confirmLogoutBtn.classList.remove("active");
+        confirmLogoutBtn.disabled = true;
+        if (countdownInterval) clearInterval(countdownInterval);
+        console.log("❌ Logout cancelled");
+      });
+
+      logoutOverlay.addEventListener("click", () => {
+        logoutModal.classList.remove("open");
+        confirmLogoutBtn.classList.remove("active");
+        confirmLogoutBtn.disabled = true;
+        if (countdownInterval) clearInterval(countdownInterval);
+      });
+
+      /**
+       * Store subscription for real-time updates
+       */
+      store.subscribe(() => {
+        const updatedState = store.getState();
+        if (updatedState.user.data) {
+          console.log("🔄 Store updated, refreshing profile...");
+          loadProfileData();
+          renderMemberRankBadge();
+        }
+      });
+
+      console.log("✅ Profile page script loaded successfully!");
+    </script>
+  </body>
+</html>

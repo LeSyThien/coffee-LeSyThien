@@ -1,0 +1,26 @@
+{
+  "name": "coffee-lesythien",
+  "version": "1.0.0",
+  "description": "Dự án này là một website demo cửa hàng cà phê với đăng ký/đăng nhập Firebase, login Google, và load sản phẩm từ Firestore.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeSyThien/coffee-LeSyThien.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LeSyThien/coffee-LeSyThien/issues"
+  },
+  "homepage": "https://github.com/LeSyThien/coffee-LeSyThien#readme",
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

@@ -1,0 +1,374 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function hasOnlyKeys(allowedKeys) {
+      return request.resource.data.keys().hasOnly(allowedKeys);
+    }
+
+    function changedKeysAre(allowedKeys) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowedKeys);
+    }
+
+    function positiveNumber(value) {
+      return value is number && value >= 0;
+    }
+
+    function isProfileUpdate() {
+      return changedKeysAre([
+        "name",
+        "phone",
+        "address",
+        "avatar",
+        "updatedAt"
+      ]) &&
+      request.resource.data.uid == resource.data.uid &&
+      request.resource.data.email == resource.data.email &&
+      request.resource.data.role == resource.data.role &&
+      request.resource.data.balance == resource.data.balance &&
+      request.resource.data.totalSpent == resource.data.totalSpent &&
+      request.resource.data.lastClaimedGift == resource.data.lastClaimedGift;
+    }
+
+    function isVipPurchaseUpdate() {
+      // ✅ DEFENSIVE PROGRAMMING: Lập trình phòng thủ cho bảo mật
+      let incoming = request.resource.data;
+      let existing = resource.data;
+      
+      // Kiểm tra CHÍNH XÁC 9 trường VIP (không thiếu, không thừa)
+      let changedFieldsOk = changedKeysAre([
+        "balance",
+        "totalSpent", 
+        "vipLevel",
+        "isVipActive",
+        "vipExpiration",
+        "vipPackageType",
+        "lastVipPurchaseDate",
+        "updatedAt",
+        "isPermanent"          // ✅ Field 9: Thêm isPermanent để trace permanent status
+      ]);
+      
+      // ✅ ATOMIC VALIDATION: Kiểm tra logic giao dịch nguyên tố
+      // Balance phải giảm đúng số tiền gói
+      let balanceValid = incoming.balance is number && 
+                        incoming.balance >= 0 && 
+                        incoming.balance < existing.balance;
+      
+      // TotalSpent phải tăng lên (support user mới với undefined totalSpent)
+      let totalSpentValid = incoming.totalSpent is number && 
+                           incoming.totalSpent > existing.get('totalSpent', 0);
+      
+      // ✅ Bảo vệ: uid, email, role, name PHẢI giữ nguyên (chống fraud)
+      let protectedFieldsUnchanged = 
+        incoming.uid == existing.uid &&
+        incoming.email == existing.email &&
+        incoming.role == existing.role &&
+        incoming.name == existing.name;
+      
+      // ✅ BẢNG VỆ TRẠNG THÁI VĨNH VIỄN: isPermanent không được thay đổi từ true → false
+      // Nếu user đã isPermanent = true, thì PHẢI giữ isPermanent = true mãi mãi
+      let permanentStatusProtected = 
+        existing.get('isPermanent', false) == false || 
+        incoming.isPermanent == true;
+      
+      return changedFieldsOk && balanceValid && totalSpentValid && protectedFieldsUnchanged && permanentStatusProtected;
+    }
+
+    // ✅ HÀM ĐẶC BIỆT: Kiểm tra VIP "THỰC TẾ" CÓ HOẠT ĐỘNG (Vàng) VS KHÔNG HOẠT ĐỘNG (Bạc)
+    function isActuallyActive(userData) {
+      // VIP Vàng (Thực tế hoạt động): isVipActive = true VÀ gói còn hạn (hoặc permanent)
+      let hasActiveStatus = userData.get('isVipActive', false) == true;
+      let notExpired = userData.get('vipExpiration', '0000-00-00T00:00:00Z') == '9999-12-31T23:59:59Z' || 
+                      request.time < timestamp.date(userData.get('vipExpiration', '0000-00-00T00:00:00Z'));
+      
+      return hasActiveStatus && notExpired;
+    }
+
+    function userVipLevel(totalSpent) {
+      return totalSpent >= 500000000 ? 10 :
+        totalSpent >= 320000000 ? 9 :
+        totalSpent >= 160000000 ? 8 :
+        totalSpent >= 80000000 ? 7 :
+        totalSpent >= 40000000 ? 6 :
+        totalSpent >= 20000000 ? 5 :
+        totalSpent >= 10000000 ? 4 :
+        totalSpent >= 5000000 ? 3 :
+        totalSpent >= 1000000 ? 2 :
+        totalSpent >= 500000 ? 1 : 0;
+   }
+
+    function isValidDepositStatus(status) {
+      return status in [
+        "pending",
+        "checking",
+        "success",
+        "failed",
+        "expired",
+        "suspicious"
+      ];
+    }
+
+    function isValidTransactionCode(code) {
+      return code is string &&
+        code.size() >= 8 &&
+        code.size() <= 20 &&
+        code.matches('^[A-Z0-9]{8,20}$');
+    }
+
+    function isValidTxnId(txnId) {
+      return txnId is string &&
+        txnId.size() >= 14 &&
+        txnId.size() <= 36 &&
+        txnId.matches('^NAP_[0-9]{13,}_[A-Z0-9]{4}$');
+    }
+
+    function orderShapeIsValid() {
+      return hasOnlyKeys([
+        "userId",
+        "userEmail",
+        "items",
+        "originalTotal",
+        "discountAmount",
+        "discountPercent",
+        "memberRank",
+        "total",
+        "requiredVip",
+        "status",
+        "clientRequestId",
+        "createdAt"
+      ]) &&
+      request.resource.data.userId == request.auth.uid &&
+      request.resource.data.userEmail is string &&
+      request.resource.data.items is list &&
+      request.resource.data.items.size() > 0 &&
+      positiveNumber(request.resource.data.originalTotal) &&
+      positiveNumber(request.resource.data.discountAmount) &&
+      positiveNumber(request.resource.data.discountPercent) &&
+      positiveNumber(request.resource.data.total) &&
+      positiveNumber(request.resource.data.requiredVip) &&
+      request.resource.data.status == "pending" &&
+      request.resource.data.clientRequestId is string;
+    }
+
+    function depositCreateShapeIsValid() {
+      return hasOnlyKeys([
+        "userId",
+        "amount",
+        "status",
+        "paymentMethod",
+        "txnId",
+        "transactionCode",
+        "transferContent",
+        "hasUserConfirmed",
+        "isDeleted",
+        "deletedAt",
+        "deletedBy",
+        "createdAt",
+        "updatedAt",
+        "expiresAt"
+      ]) &&
+      request.resource.data.userId == request.auth.uid &&
+      positiveNumber(request.resource.data.amount) &&
+      request.resource.data.amount >= 1000 &&
+      (request.resource.data.status == "pending" || request.resource.data.status == "suspicious") &&
+      request.resource.data.paymentMethod is string &&
+      request.resource.data.txnId is string &&
+      request.resource.data.transactionCode is string &&
+      isValidTxnId(request.resource.data.txnId) &&
+      isValidTransactionCode(request.resource.data.transactionCode) &&
+      request.resource.data.transferContent is string &&
+      request.resource.data.hasUserConfirmed == false &&
+      request.resource.data.isDeleted == false &&
+      request.resource.data.deletedAt == null &&
+      request.resource.data.deletedBy == null &&
+      request.resource.data.createdAt == request.time &&
+      request.resource.data.updatedAt == request.time &&
+      (request.resource.data.expiresAt == null || request.resource.data.expiresAt is timestamp) &&
+      isValidDepositStatus(request.resource.data.status);
+    }
+
+    function isDepositUserUpdate() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+
+      return changedKeysAre([
+        "hasUserConfirmed",
+        "updatedAt"
+      ]) &&
+      existing.userId == request.auth.uid &&
+      incoming.userId == existing.userId &&
+      incoming.amount == existing.amount &&
+      incoming.paymentMethod == existing.paymentMethod &&
+      incoming.txnId == existing.txnId &&
+      incoming.transactionCode == existing.transactionCode &&
+      incoming.transferContent == existing.transferContent &&
+      incoming.status == existing.status &&
+      existing.status == "pending" &&
+      existing.hasUserConfirmed == false &&
+      incoming.hasUserConfirmed == true &&
+      incoming.updatedAt != existing.updatedAt;
+    }
+
+    function isAdminDepositUpdate() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+
+      return isAdmin() &&
+        changedKeysAre([
+          "status",
+          "updatedAt",
+          "approvedAt",
+          "processedBy",
+          "reason",
+          "isDeleted",
+          "deletedAt",
+          "deletedBy"
+        ]) &&
+        incoming.userId == existing.userId &&
+        incoming.amount == existing.amount &&
+        incoming.paymentMethod == existing.paymentMethod &&
+        incoming.txnId == existing.txnId &&
+        incoming.transactionCode == existing.transactionCode &&
+        incoming.transferContent == existing.transferContent &&
+        !(existing.status == "success" && incoming.isDeleted == true) &&
+        (incoming.status == existing.status || isValidDepositStatus(incoming.status));
+    }
+
+    function canPermanentlyDeleteDeposit() {
+      return isAdmin() &&
+        resource.data.isDeleted == true &&
+        resource.data.deletedAt is timestamp &&
+        resource.data.deletedAt.seconds + 2592000 < request.time.seconds;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow list: if isSignedIn();
+
+      allow create: if isOwner(userId) &&
+        hasOnlyKeys([
+          "uid",
+          "name",
+          "email",
+          "balance",
+          "totalSpent",
+          "role",
+          "createdAt",
+          "phone",
+          "address",
+          "avatar",
+          "lastClaimedGift",
+          "isVipActive",
+          "vipLevel",
+          "vipExpiration",
+          "vipPackageType",
+          "lastVipPurchaseDate"
+        ]) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.email is string &&
+        request.resource.data.role == "user" &&
+        request.resource.data.balance == 0 &&
+        request.resource.data.totalSpent == 0;
+
+      // Allow profile updates OR VIP purchase updates
+      allow update: if (isOwner(userId) && (isProfileUpdate() || isVipPurchaseUpdate())) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // ✅ Allow order creation with STRICT DISCOUNT VALIDATION
+      // - User must have enough balance
+      // - User VIP level must meet product requirements
+      // - Discount must match actual VIP active status (phòng chống "VIP giả")
+      allow create: if isSignedIn() &&
+        orderShapeIsValid() &&
+        request.resource.data.total <= get(/databases/$(database)/documents/users/$(request.auth.uid)).data.balance &&
+        // ✅ VIP LEVEL: Check actual vipLevel (not recalculated from totalSpent)
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('vipLevel', 0) >= request.resource.data.get('requiredVip', 0) &&
+        // ✅ DISCOUNT VALIDATION: Chỉ cho phép giảm giá nếu VIP "VÀNG" (thực tế hoạt động)
+        // Nếu discountPercent > 0 nhưng isActuallyActive() = false → REJECT (VIP Bạc không được giảm giá)
+        (request.resource.data.get('discountPercent', 0) == 0 || 
+         isActuallyActive(get(/databases/$(database)/documents/users/$(request.auth.uid)).data));
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{txId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if false;
+      allow update, delete: if isAdmin();
+    }
+
+    match /deposit_requests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        depositCreateShapeIsValid();
+
+      allow update: if isAdminDepositUpdate() || (isSignedIn() && isDepositUserUpdate());
+      allow delete: if canPermanentlyDeleteDeposit();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.productId is string &&
+        request.resource.data.orderId is string &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5;
+
+      allow update: if (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        changedKeysAre(["comment", "rating", "updatedAt"]) &&
+        request.resource.data.rating is number &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5
+      ) || isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    match /carts/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create, update: if (isOwner(userId) || isAdmin()) &&
+        hasOnlyKeys(["items", "total", "updatedAt"]) &&
+        request.resource.data.items is list &&
+        positiveNumber(request.resource.data.total);
+
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

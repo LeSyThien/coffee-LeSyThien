@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Midnight Espresso - Premium Coffee Experience</title>
+
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/navbar.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/midnight-espresso.css" />
+    <link rel="stylesheet" href="../css/home-premium.css" />
+
+    <!-- Preload Firebase scripts for instant loading -->
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+      as="script"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      as="script"
+      crossorigin
+    />
+
+    <!-- Instant.page for instant navigation on hover -->
+    <script src="https://instant.page/5.2.0" type="module"></script>
+  </head>
+
+  <body>
+    <div id="navbar-root"></div>
+
+    <main>
+      <!-- ===== HERO SECTION WITH PARALLAX ===== -->
+      <section class="hero-section" id="hero">
+        <!-- Parallax Background -->
+        <div class="hero-parallax-bg" data-parallax-speed="0.5"></div>
+
+        <!-- Floating Coffee Beans -->
+        <div class="floating-beans-container" id="floating-beans"></div>
+
+        <!-- Hero Content -->
+        <div class="hero-content">
+          <div class="hero-text">
+            <h1 class="hero-title" data-scroll-reveal>Midnight Espresso</h1>
+            <p class="hero-subtitle" data-scroll-reveal="delay-1">
+              The Art of Extraordinary Coffee
+            </p>
+            <p class="hero-description" data-scroll-reveal="delay-2">
+              Where precision meets passion. Indulge in the finest espresso
+              crafted for the discerning palate.
+            </p>
+            <div class="hero-cta" data-scroll-reveal="delay-3">
+              <button
+                class="btn btn-primary btn-large"
+                onclick="
+                  document
+                    .getElementById('premium-collections')
+                    .scrollIntoView({ behavior: 'smooth' })
+                "
+              >
+                Explore Collection
+                <span style="margin-left: 8px">→</span>
+              </button>
+              <button class="btn btn-secondary btn-large">Reserve Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="scroll-indicator" data-scroll-reveal="delay-4">
+          <span>Scroll to discover</span>
+          <div class="scroll-arrow">↓</div>
+        </div>
+      </section>
+
+      <!-- ===== PREMIUM COLLECTIONS SECTION (REAL DATABASE) ===== -->
+      <section class="premium-collections-section" id="premium-collections">
+        <div class="section-header" data-scroll-reveal>
+          <p class="section-kicker">Specialty Coffee</p>
+          <h2 class="section-title">Premium Collections</h2>
+          <p class="section-subtitle">
+            Sản phẩm thật được đồng bộ từ Admin Dashboard, sẵn sàng thêm vào giỏ
+            với trải nghiệm premium hơn
+          </p>
+        </div>
+
+        <div class="premium-collections-shell">
+          <div
+            id="home-products-grid"
+            class="home-products-grid"
+            aria-live="polite"
+          >
+            <!-- Home products render từ Firestore -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== THE LEGACY SECTION WITH SCROLL REVEAL ===== -->
+      <section class="legacy-section" id="legacy" data-scroll-reveal>
+        <div class="legacy-content">
+          <div class="legacy-text">
+            <h2 class="legacy-title">The Legacy</h2>
+            <p class="legacy-description">
+              For over two decades, Midnight Espresso has been the sanctuary for
+              those who understand that coffee is more than a beverage—it's a
+              ritual, a moment of clarity, a connection to something greater.
+            </p>
+            <p class="legacy-description">
+              Every bean is hand-selected from the most prestigious origins.
+              Every extraction is a meditation on perfection. Every cup tells a
+              story of dedication, passion, and an unyielding commitment to
+              excellence.
+            </p>
+            <p class="legacy-description">
+              We don't just serve coffee. We serve an experience. We serve art.
+              We serve the pursuit of the extraordinary.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PREMIUM PRIVILEGE (VIP) SECTION ===== -->
+      <section class="premium-privilege-section" id="vip-section">
+        <div class="section-header" data-scroll-reveal>
+          <h2 class="section-title">Premium Privilege</h2>
+          <p class="section-subtitle">
+            Exclusive benefits for our most valued members
+          </p>
+        </div>
+
+        <div class="vip-tiers-grid">
+          <!-- VIP Level 1 -->
+          <div class="vip-tier-card" data-scroll-reveal="delay-1">
+            <div class="tier-badge">VIP 1</div>
+            <div class="tier-icon">🥈</div>
+            <h3>Entry Excellence</h3>
+            <p class="tier-threshold">From ₫1,000,000 spent</p>
+            <div class="tier-benefits">
+              <p class="benefit">✓ 1% Discount on all orders</p>
+              <p class="benefit">✓ Daily gift: ₫1,000</p>
+              <p class="benefit">✓ Member-exclusive events</p>
+              <p class="benefit">✓ Early access to new releases</p>
+            </div>
+          </div>
+
+          <!-- VIP Level 3 -->
+          <div
+            class="vip-tier-card vip-highlighted"
+            data-scroll-reveal="delay-2"
+          >
+            <div class="tier-badge tier-badge-featured">VIP 3</div>
+            <div class="tier-icon">🥇</div>
+            <h3>Connoisseur Status</h3>
+            <p class="tier-threshold">From ₫5,000,000 spent</p>
+            <div class="tier-benefits">
+              <p class="benefit">✓ 3% Discount on all orders</p>
+              <p class="benefit">✓ Daily gift: ₫5,000</p>
+              <p class="benefit">✓ Personal sommelier consultation</p>
+              <p class="benefit">✓ Limited edition releases</p>
+              <p class="benefit">✓ VIP lounge access</p>
+            </div>
+          </div>
+
+          <!-- VIP Level 5 -->
+          <div class="vip-tier-card" data-scroll-reveal="delay-3">
+            <div class="tier-badge">VIP 5</div>
+            <div class="tier-icon">💎</div>
+            <h3>Elite Patron</h3>
+            <p class="tier-threshold">From ₫20,000,000 spent</p>
+            <div class="tier-benefits">
+              <p class="benefit">✓ 5% Discount on all orders</p>
+              <p class="benefit">✓ Daily gift: ₫12,000</p>
+              <p class="benefit">✓ Private tasting events</p>
+              <p class="benefit">✓ Bespoke coffee curation</p>
+              <p class="benefit">✓ Lifetime VIP status</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== OUR GALLERY SECTION (MARQUEE) ===== -->
+      <section class="gallery-section" id="gallery">
+        <div class="section-header" data-scroll-reveal>
+          <h2 class="section-title">Moments of Excellence</h2>
+          <p class="section-subtitle">See what our community treasures</p>
+        </div>
+
+        <div class="marquee-container">
+          <div class="marquee" data-scroll-reveal>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-1.jpg"
+                  alt="Coffee moment 1"
+                />
+                <p class="gallery-caption">The Perfect Pour</p>
+              </div>
+            </div>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-2.jpg"
+                  alt="Coffee moment 2"
+                />
+                <p class="gallery-caption">Morning Ritual</p>
+              </div>
+            </div>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-3.jpg"
+                  alt="Coffee moment 3"
+                />
+                <p class="gallery-caption">Latte Art</p>
+              </div>
+            </div>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-4.jpg"
+                  alt="Coffee moment 4"
+                />
+                <p class="gallery-caption">Single Origin</p>
+              </div>
+            </div>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-5.jpg"
+                  alt="Coffee moment 5"
+                />
+                <p class="gallery-caption">The Craft</p>
+              </div>
+            </div>
+            <!-- Duplicate for seamless loop -->
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-1.jpg"
+                  alt="Coffee moment 1"
+                />
+                <p class="gallery-caption">The Perfect Pour</p>
+              </div>
+            </div>
+            <div class="marquee-item">
+              <div class="gallery-card">
+                <img
+                  src="../assets/images/coffee-2.jpg"
+                  alt="Coffee moment 2"
+                />
+                <p class="gallery-caption">Morning Ritual</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ELITE PATRONS SECTION (MARQUEE) ===== -->
+      <section class="elite-patrons-section" data-scroll-reveal>
+        <div class="elite-header">
+          <h2>🏆 Elite Patrons</h2>
+          <p>Celebrating our legendary VIP 10 members who fuel our passion</p>
+        </div>
+        <div class="elite-marquee-container">
+          <div class="elite-marquee" id="elite-marquee">
+            <!-- Dynamically populated with VIP 10 patrons -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CTA SECTION ===== -->
+      <section class="cta-section" data-scroll-reveal>
+        <h2>Ready to experience the extraordinary?</h2>
+        <p>
+          Join thousands of coffee enthusiasts who have made Midnight Espresso
+          their daily ritual.
+        </p>
+        <button class="btn btn-primary btn-large">
+          Start Your Journey
+          <span style="margin-left: 8px">→</span>
+        </button>
+      </section>
+
+      <!-- ===== PRODUCTS SECTION (Legacy, kept for compatibility) ===== -->
+      <section
+        id="products-section"
+        class="products-section"
+        style="display: none"
+      >
+        <div class="products-container">
+          <h2 class="products-title">Featured Menu</h2>
+          <div id="products" class="products-grid">
+            <!-- Products will be dynamically inserted here -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Cart Sidebar -->
+    <div id="cart-root"></div>
+    <div id="toast"></div>
+
+    <!-- Scripts -->
+    <script type="module">
+      // ✅ FIX: Import và call initHomePage thay vì gọi từng function
+      // Đây là để tránh duplication và đảm bảo init chỉ 1 lần
+      import { initHomePage } from "../js/pages/home.js";
+
+      // ✅ Gọi một lần duy nhất (Elite Patrons + Premium Products + VIP 10)
+      initHomePage();
+    </script>
+    <script type="module" src="../js/pages/main.js"></script>
+    <script type="module" src="../js/utils/scroll-reveal.js"></script>
+    <script type="module" src="../js/utils/parallax.js"></script>
+    <script type="module" src="../js/utils/floating-beans.js"></script>
+  </body>
+</html>

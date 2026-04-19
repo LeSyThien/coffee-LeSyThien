@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menu - Premium Coffee</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/pages/products.css" />
+
+    <!-- Preload Firebase scripts for instant loading -->
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+      as="script"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      as="script"
+      crossorigin
+    />
+
+    <!-- Instant.page for instant navigation on hover -->
+    <script src="https://instant.page/5.2.0" type="module"></script>
+  </head>
+  <body>
+    <div id="navbar-root"></div>
+    <div id="cart-root"></div>
+
+    <main class="products-page">
+      <div class="products-container">
+        <div class="products-header">
+          <h1>Our Menu</h1>
+          <p>Discover our complete collection of premium coffee blends</p>
+        </div>
+
+        <div class="products-filters">
+          <button class="filter-btn active" data-filter="all">
+            All Products
+          </button>
+          <button class="filter-btn" data-filter="espresso">Espresso</button>
+          <button class="filter-btn" data-filter="latte">Latte</button>
+          <button class="filter-btn" data-filter="cappuccino">
+            Cappuccino
+          </button>
+          <button class="filter-btn" data-filter="matcha">Matcha</button>
+        </div>
+
+        <div id="products" class="products-grid"></div>
+
+        <button id="load-more-btn" class="load-more-btn hidden">
+          Load More Products
+        </button>
+
+        <div id="no-products" class="no-products hidden">
+          <div class="no-products-icon">☕</div>
+          <p>No products found</p>
+          <p style="font-size: 0.95rem; color: #666">
+            Try adjusting your filters or search
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { initializeAuth } from "../js/core/auth-init.js";
+      import { initRender } from "../js/core/render.js";
+      import store from "../js/store/index.js";
+      import { ACTION_TYPES } from "../js/store/actions.js";
+      import { renderProducts } from "../js/components/products.js";
+      import { initNavbar } from "../js/components/navbar.js";
+      import { initCart } from "../js/components/cart.js";
+
+      // Initialize
+      initRender();
+      initializeAuth()
+        .then(() => {
+          console.log("Auth initialized successfully!");
+        })
+        .catch((error) => {
+          console.error("Auth initialization failed:", error);
+        });
+      initNavbar();
+      initCart();
+
+      // Get search query from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchQuery = urlParams.get("search");
+      if (searchQuery) {
+        store.dispatch({
+          type: ACTION_TYPES.SET_SEARCH_QUERY,
+          payload: searchQuery,
+        });
+      }
+
+      // Re-render products when state changes
+      store.subscribe(() => {
+        const state = store.getState();
+        renderProducts(state);
+      });
+
+      // Initial render
+      const state = store.getState();
+      renderProducts(state);
+
+      // Filter buttons logic
+      const filterBtns = document.querySelectorAll(".filter-btn");
+      filterBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          filterBtns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          // TODO: Implement category filter logic
+        });
+      });
+
+      // Load more button (if implementing pagination)
+      const loadMoreBtn = document.getElementById("load-more-btn");
+      if (loadMoreBtn) {
+        loadMoreBtn.addEventListener("click", () => {
+          // TODO: Implement load more logic
+        });
+      }
+    </script>
+  </body>
+</html>

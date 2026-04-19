@@ -1,0 +1,108 @@
+.products-page {
+  padding-top: 90px;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+.products-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.products-header {
+  margin-bottom: 48px;
+  text-align: center;
+}
+
+.products-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #c89b3c, #fff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.products-header p {
+  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.products-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-btn {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(200, 155, 60, 0.3);
+  border-radius: 8px;
+  color: #ccc;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+  background: linear-gradient(135deg, #c89b3c 0%, #b8891f 100%);
+  color: white;
+  border-color: #c89b3c;
+  transform: scale(1.05);
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 28px;
+  margin-bottom: 40px;
+}
+
+.load-more-btn {
+  display: block;
+  margin: 40px auto;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #c89b3c 0%, #b8891f 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(200, 155, 60, 0.3);
+}
+
+.load-more-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(200, 155, 60, 0.5);
+}
+
+.load-more-btn:active {
+  transform: translateY(0);
+}
+
+.load-more-btn.hidden {
+  display: none;
+}
+
+.no-products {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
+
+.no-products-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}

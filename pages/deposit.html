@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nạp tiền | Gilded Bean</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/premium-style.css" />
+    <link rel="stylesheet" href="../css/deposit-premium.css" />
+
+    <!-- Preload Firebase scripts for instant loading -->
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
+      as="script"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      as="script"
+      crossorigin
+    />
+
+    <!-- Instant.page for instant navigation on hover -->
+    <script src="https://instant.page/5.2.0" type="module"></script>
+    <style>
+      .btn-pulse {
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.22s ease;
+      }
+      .btn-pulse:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0 24px rgba(255, 215, 0, 0.24);
+      }
+      .input-error {
+        border-color: #ff4d4f !important;
+      }
+      .input-error-text {
+        color: #ff4d4f;
+        min-height: 1.15rem;
+        margin-top: 6px;
+        font-size: 13px;
+      }
+      .timeline-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 18px 0 12px;
+      }
+      .timeline-step {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        padding: 12px 14px;
+        text-align: center;
+        transition:
+          transform 0.2s ease,
+          border-color 0.2s ease,
+          background 0.2s ease;
+      }
+      .timeline-step.active {
+        background: rgba(255, 215, 0, 0.18);
+        border-color: rgba(255, 215, 0, 0.4);
+      }
+      .timeline-step span {
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        margin-bottom: 8px;
+        font-weight: 700;
+      }
+      .recent-transactions {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .recent-transactions h4 {
+        margin-bottom: 12px;
+      }
+      .recent-transaction-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .recent-transaction-item:last-child {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+  <body class="deposit-shell" data-page="deposit">
+    <div
+      class="cursor-radial-glow"
+      id="cursor-radial-glow"
+      aria-hidden="true"
+    ></div>
+    <div id="navbar-root"></div>
+    <div id="cart-root"></div>
+
+    <main class="deposit-page">
+      <div id="offline-banner" class="status-banner">
+        <span id="offline-text"></span>
+      </div>
+
+      <section class="deposit-hero">
+        <article class="glass-card hero-balance">
+          <span class="eyebrow">Nạp tiền an toàn</span>
+          <h1>Nạp tiền vào ví — nhanh, rõ ràng, đúng chuẩn ngân hàng.</h1>
+          <p class="hero-copy">
+            Mã giao dịch và nội dung chuyển khoản được tạo tự động. Bạn có thể
+            quay lại trang sau; hệ thống giữ trạng thái giao dịch trên máy chủ.
+          </p>
+
+          <div class="visa-balance-card" id="visa-balance-card">
+            <div class="visa-balance-chip" aria-hidden="true"></div>
+            <div class="visa-balance-row">
+              <span class="visa-balance-label">Số dư hiện tại</span>
+              <span class="visa-brand" aria-hidden="true">GB</span>
+            </div>
+            <div class="balance-value" id="current-balance">0đ</div>
+            <p class="visa-balance-foot">
+              Ví Gilded Bean · bảo mật theo phiên đăng nhập
+            </p>
+          </div>
+        </article>
+
+        <aside class="glass-card hero-side">
+          <span class="eyebrow">Tin cậy &amp; minh bạch</span>
+          <div class="trust-grid">
+            <div class="trust-item">
+              <strong>Giao dịch được mã hóa và bảo mật 256-bit</strong>
+              <div class="section-desc">
+                Mã QR có hiệu lực trong 15 phút. Sau khi xác nhận chuyển khoản,
+                bạn không cần gửi trùng để tránh spam giao dịch.
+              </div>
+            </div>
+            <div class="trust-item">
+              <strong>Thông tin thụ hưởng</strong>
+              <div class="trust-badges">
+                <div class="trust-badge" id="summary-account-name"></div>
+                <div class="trust-badge" id="summary-account-number"></div>
+                <div class="trust-badge" id="summary-bank-name"></div>
+              </div>
+            </div>
+            <div class="trust-item">
+              <strong>Ngân hàng &amp; đối tác</strong>
+              <div class="trust-badges">
+                <div class="trust-badge">MB BANK</div>
+                <div class="trust-badge">VietQR</div>
+                <div class="trust-badge">Đồng bộ thời gian thực</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="glass-card deposit-stage-card">
+        <div class="stepper">
+          <div class="step-dot active" data-step="1">01 · Chọn mệnh giá</div>
+          <div class="step-dot" data-step="2">02 · Quét mã QR</div>
+          <div class="step-dot" data-step="3">03 · Gửi &amp; đối soát</div>
+        </div>
+
+        <div class="stage-stack">
+          <div class="stage-track" id="stage-track">
+            <section class="stage-panel" data-stage="1">
+              <div class="stage-grid">
+                <div class="section-card section-card--amount">
+                  <h2>Chọn số tiền nạp</h2>
+                  <p class="section-desc">
+                    Mỗi lần chọn mệnh giá, hệ thống sẽ tạo mã giao dịch riêng.
+                    Nội dung chuyển khoản luôn có dạng:
+                    <strong>mã giao dịch + mã người dùng</strong>.
+                  </p>
+
+                  <div id="quick-amounts" class="quick-amounts"></div>
+
+                  <div class="form-row">
+                    <label for="deposit-amount">Số tiền nạp (VNĐ)</label>
+                    <input
+                      id="deposit-amount"
+                      class="premium-input"
+                      type="number"
+                      min="10000"
+                      step="10000"
+                      placeholder="Ví dụ: 500.000"
+                    />
+                  </div>
+
+                  <div class="stage-actions" style="margin-top: 22px">
+                    <button
+                      id="create-qr-btn"
+                      class="btn-premium"
+                      type="button"
+                    >
+                      Tạo mã QR động
+                    </button>
+                  </div>
+                </div>
+
+                <div class="section-card">
+                  <h3>Vì sao có ba bước?</h3>
+                  <p class="help-text">
+                    Bước một tạo yêu cầu và khóa số tiền; bước hai hiển thị mã
+                    QR VietQR; bước ba là trạng thái đối soát với admin. Bạn có
+                    thể đóng trình duyệt và mở lại — trạng thái được đồng bộ từ
+                    máy chủ.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="stage-panel" data-stage="2">
+              <div class="stage-grid">
+                <div class="section-card qr-shell">
+                  <div
+                    class="helper-row"
+                    style="justify-content: space-between; margin-bottom: 14px"
+                  >
+                    <div class="countdown" id="countdown">Hiệu lực 15:00</div>
+                    <div class="helper-row">
+                      <button
+                        id="back-step-btn"
+                        class="btn-ghost hidden"
+                        type="button"
+                      >
+                        Quay lại
+                      </button>
+                      <button
+                        id="regenerate-qr-btn"
+                        class="btn-secondary"
+                        type="button"
+                      >
+                        Tạo mã mới
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="qr-frame">
+                    <span class="qr-laser" aria-hidden="true"></span>
+                    <img id="vietqr-image" alt="Mã QR VietQR" />
+                  </div>
+                </div>
+
+                <div class="section-card">
+                  <h3>Thông tin chuyển khoản</h3>
+                  <div class="detail-list">
+                    <div class="detail-row">
+                      <span>Chủ tài khoản</span>
+                      <strong id="qr-owner">LE SY THIEN</strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Ngân hàng</span>
+                      <strong id="qr-bank"></strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Số tiền</span>
+                      <strong id="qr-amount"></strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Mã giao dịch</span>
+                      <strong id="txn-id"></strong>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <label for="transfer-content">Nội dung chuyển khoản</label>
+                    <textarea
+                      id="transfer-content"
+                      class="premium-input premium-textarea"
+                      readonly
+                    ></textarea>
+                  </div>
+
+                  <div class="stage-actions" style="margin-top: 18px">
+                    <button
+                      id="copy-transfer-btn"
+                      class="btn-secondary btn-copy"
+                      type="button"
+                    >
+                      <span class="btn-copy-label">Sao chép nội dung</span>
+                      <span class="btn-copy-icon" aria-hidden="true">✓</span>
+                    </button>
+                    <button
+                      id="confirm-transferred-btn"
+                      class="btn-premium btn-pulse"
+                      type="button"
+                    >
+                      Tiếp theo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="stage-panel" data-stage="3">
+              <div class="stage-grid">
+                <div class="section-card status-card">
+                  <div id="status-pill" class="status-pill pending">
+                    Chờ chuyển khoản
+                  </div>
+                  <h3 id="status-title">Trạng thái giao dịch</h3>
+                  <p id="status-copy" class="section-desc"></p>
+
+                  <div class="detail-list">
+                    <div class="detail-row">
+                      <span>Mã giao dịch</span>
+                      <strong id="detail-txn-id">—</strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Số tiền</span>
+                      <strong id="detail-amount">0đ</strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Trạng thái</span>
+                      <strong id="detail-status">Chờ chuyển khoản</strong>
+                    </div>
+                    <div class="detail-row">
+                      <span>Cập nhật lúc</span>
+                      <strong id="detail-updated-at">—</strong>
+                    </div>
+                  </div>
+
+                  <p id="detail-hint" class="help-text"></p>
+                </div>
+
+                <div class="section-card">
+                  <h3>Nhập mã giao dịch</h3>
+                  <div class="form-row">
+                    <label for="transaction-code-input">Mã giao dịch</label>
+                    <input
+                      id="transaction-code-input"
+                      class="premium-input"
+                      type="text"
+                      maxlength="20"
+                      placeholder="Nhập mã giao dịch (VD: FT240418...)"
+                      autocomplete="off"
+                    />
+                    <p id="transaction-code-error" class="input-error-text"></p>
+                    <p id="transaction-code-helper" class="help-text">
+                      Mã giao dịch giúp hệ thống xác thực nhanh hơn
+                    </p>
+                  </div>
+
+                  <div class="stage-actions" style="margin-top: 16px">
+                    <button
+                      id="submit-transaction-code-btn"
+                      class="btn-premium btn-pulse"
+                      type="button"
+                    >
+                      Xác nhận nạp tiền
+                    </button>
+                  </div>
+
+                  <div class="timeline-row" id="progress-timeline">
+                    <div class="timeline-step active" data-step="1">
+                      <span>1</span>
+                      <div>Đã gửi yêu cầu</div>
+                    </div>
+                    <div class="timeline-step" data-step="2">
+                      <span>2</span>
+                      <div>Đang đối soát</div>
+                    </div>
+                    <div class="timeline-step" data-step="3">
+                      <span>3</span>
+                      <div>Hoàn tất</div>
+                    </div>
+                  </div>
+
+                  <div class="recent-transactions" id="recent-transactions">
+                    <h4>Giao dịch gần đây</h4>
+                    <div class="recent-transaction-list">Chưa có giao dịch</div>
+                  </div>
+
+                  <div class="helper-row" style="margin-top: 18px">
+                    <a
+                      id="help-center-link"
+                      class="helper-link"
+                      href="profile.html#support"
+                    >
+                      Gặp sự cố khi nạp tiền?
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast-stack" class="toast-stack"></div>
+    <div id="confetti-layer" class="confetti-layer"></div>
+
+    <script type="module" src="../js/pages/deposit.js"></script>
+  </body>
+</html>
