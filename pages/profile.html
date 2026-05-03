@@ -460,22 +460,26 @@
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="avatar-input"
-                    >Profile Picture</label
+                  <label class="form-label" for="avatar-url-input"
+                    >Profile Picture URL</label
                   >
-                  <div class="file-input-container">
+                  <div class="avatar-url-container">
                     <input
-                      type="file"
-                      id="avatar-input"
-                      class="file-input"
-                      accept="image/*"
+                      type="text"
+                      id="avatar-url-input"
+                      class="form-input avatar-url-input"
+                      placeholder="https://example.com/avatar.jpg"
                     />
-                    <label for="avatar-input" class="file-input-label">
-                      <span>📷</span> Choose Profile Picture
-                    </label>
+                    <button
+                      type="button"
+                      id="preview-avatar-btn"
+                      class="btn-preview-avatar"
+                    >
+                      <span>👁️</span> Preview
+                    </button>
                   </div>
                   <div class="info-text">
-                    Upload a new profile picture (max 5MB)
+                    Paste image URL and click Preview to see it before saving
                   </div>
                 </div>
 
@@ -615,7 +619,6 @@
         auth,
         saveUserProfile,
         logoutUser,
-        uploadAvatar,
       } from "../js/services/firebase.service.js";
       import store from "../js/store/index.js";
       import { closeVipModal } from "../js/services/vip.service.js";
@@ -626,7 +629,8 @@
       const nameInput = document.getElementById("name-input");
       const phoneInput = document.getElementById("phone-input");
       const addressInput = document.getElementById("address-input");
-      const avatarInput = document.getElementById("avatar-input");
+      const avatarUrlInput = document.getElementById("avatar-url-input");
+      const previewAvatarBtn = document.getElementById("preview-avatar-btn");
       const saveChangesBtn = document.getElementById("save-changes-btn");
 
       // Card Display Elements
@@ -646,7 +650,8 @@
       // ===== STATE VARIABLES =====
       let currentUser = null;
       let currentAvatarUrl = "";
-      let isUploading = false;
+      let pendingAvatarUrl = ""; // URL being previewed/edited
+      let isSaving = false;
       let countdownInterval = null;
 
       // ===== INITIALIZATION =====
@@ -766,7 +771,10 @@
         nameInput.value = userData.name || "";
         phoneInput.value = userData.phone || "";
         addressInput.value = userData.address || "";
-        currentAvatarUrl = userData.avatar || "";
+        const avatarUrl = userData.avatar || userData.photoURL || "";
+        avatarUrlInput.value = avatarUrl;
+        currentAvatarUrl = avatarUrl;
+        pendingAvatarUrl = avatarUrl;
 
         // Update card display
         updateCardDisplay(userData);
@@ -784,9 +792,11 @@
           userEmailEl.textContent = currentUser?.email || "";
         }
 
-        // Update avatar display
-        if (currentAvatarUrl) {
-          userAvatarEl.innerHTML = `<img src="${currentAvatarUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
+        // Update avatar display with fallback
+        const avatarUrl =
+          currentAvatarUrl || userData.avatar || userData.photoURL || "";
+        if (avatarUrl && avatarUrl.trim().startsWith("http")) {
+          userAvatarEl.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="avatar-preview" onerror="this.src='https://via.placeholder.com/120?text=Avatar'" />`;
         } else {
           const firstLetter = (userData.name || "U").charAt(0).toUpperCase();
           userAvatarEl.innerHTML = firstLetter;
@@ -799,28 +809,48 @@
       }
 
       /**
-       * Avatar file selection handler
+       * Avatar URL preview handler
        */
-      avatarInput.addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+      previewAvatarBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const url = avatarUrlInput.value.trim();
 
-        if (file.size > 5 * 1024 * 1024) {
-          toastError("File size must be less than 5MB");
-          avatarInput.value = "";
+        // Validation: must start with http
+        if (!url) {
+          toastError("Please enter an avatar URL");
           return;
         }
 
-        console.log("📷 Avatar selected:", file.name);
+        if (!url.startsWith("http")) {
+          toastError("URL must start with 'http' or 'https'");
+          return;
+        }
+
+        // Set pending avatar URL and update preview
+        pendingAvatarUrl = url;
+
+        // Update avatar display with smooth transition
+        const img = document.createElement("img");
+        img.src = url;
+        img.className = "avatar-preview";
+        img.onerror = () => {
+          toastError("Failed to load image. Check the URL and CORS access.");
+          img.src = "https://via.placeholder.com/120?text=Invalid";
+        };
+        img.onload = () => {
+          userAvatarEl.innerHTML = "";
+          userAvatarEl.appendChild(img);
+          toastSuccess("Avatar preview updated!");
+        };
       });
 
       /**
-       * Save Changes button handler - SECURITY: Only name, phone, address, avatar
+       * Save Changes button handler - SECURITY: Only name, phone, address, avatar URL
        */
       saveChangesBtn.addEventListener("click", async () => {
-        if (!currentUser || isUploading) return;
+        if (!currentUser || isSaving) return;
 
-        isUploading = true;
+        isSaving = true;
         saveChangesBtn.disabled = true;
 
         const updates = {
@@ -829,36 +859,37 @@
           address: addressInput.value.trim(),
         };
 
+        // Handle avatar URL
+        if (pendingAvatarUrl && pendingAvatarUrl.trim().startsWith("http")) {
+          updates.avatar = pendingAvatarUrl;
+        } else if (!pendingAvatarUrl) {
+          updates.avatar = "";
+        }
+
         // Validate at least one field has changed
         const userData = store.getState().user.data || {};
         const hasChanges =
           updates.name !== userData.name ||
           updates.phone !== userData.phone ||
           updates.address !== userData.address ||
-          avatarInput.files.length > 0;
+          updates.avatar !== (userData.avatar || userData.photoURL || "");
 
         if (!hasChanges) {
           toastError("No changes to save");
-          isUploading = false;
+          isSaving = false;
           saveChangesBtn.disabled = false;
           return;
         }
 
         try {
-          // Handle avatar upload if selected
-          if (avatarInput.files.length > 0) {
-            const file = avatarInput.files[0];
-            console.log("⬆️ Uploading avatar...");
-            const avatarUrl = await uploadAvatar(file, currentUser.uid);
-            updates.avatar = avatarUrl;
-            currentAvatarUrl = avatarUrl;
-            console.log("✅ Avatar uploaded:", avatarUrl);
-          }
-
           // Save profile to Firestore (SECURITY: Only these fields)
           console.log("💾 Saving profile:", updates);
           await saveUserProfile(currentUser.uid, updates);
           console.log("✅ Profile saved successfully!");
+
+          // Update current state
+          currentAvatarUrl = updates.avatar || "";
+          pendingAvatarUrl = updates.avatar || "";
 
           // Update store
           store.dispatch({
@@ -872,15 +903,12 @@
           // Update UI immediately
           updateCardDisplay({ ...userData, ...updates });
 
-          // Clear file input
-          avatarInput.value = "";
-
           toastSuccess("Profile updated successfully!");
         } catch (error) {
           console.error("❌ Save failed:", error);
           toastError("Failed to save changes: " + error.message);
         } finally {
-          isUploading = false;
+          isSaving = false;
           saveChangesBtn.disabled = false;
         }
       });

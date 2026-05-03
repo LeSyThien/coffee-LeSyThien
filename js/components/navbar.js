@@ -104,7 +104,9 @@ export function renderNavbar(state) {
   }
 
   prevBalance = currentBalance;
-  const avatar = user && user.avatar ? user.avatar : null;
+
+  // AVATAR LOGIC: Prioritize photoURL (from URL paste), then avatar (base64), then fallback
+  const userPhoto = user?.photoURL || user?.avatar || null;
   const isAdmin = user && user.role === "admin";
 
   const existingInput = document.getElementById("nav-search");
@@ -113,11 +115,12 @@ export function renderNavbar(state) {
     document.activeElement && document.activeElement.id === "nav-search";
   const cursorPos = existingInput?.selectionStart || 0;
 
+  // Avatar HTML with smooth transition
   const avatarHTML = user
-    ? user.avatar
-      ? `<img src="${user.avatar}" alt="Avatar" class="navbar-avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #555;">`
-      : `<div class="navbar-avatar-fallback">${(user.name || "U").charAt(0).toUpperCase()}</div>`
-    : `<div class="navbar-avatar-guest">G</div>`;
+    ? userPhoto
+      ? `<img src="${userPhoto}" alt="Avatar" class="navbar-avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(200, 155, 60, 0.5); transition: all 0.3s ease;">`
+      : `<div class="navbar-avatar-fallback" style="width: 40px; height: 40px; border-radius: 50%; background: #2a2a2a; color: #c89b3c; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1.5px solid rgba(200, 155, 60, 0.3);">${(user.name || "U").charAt(0).toUpperCase()}</div>`
+    : `<div class="navbar-avatar-guest" style="width: 40px; height: 40px; border-radius: 50%; background: #2a2a2a; color: #888; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1.5px solid rgba(100, 100, 100, 0.3);">G</div>`;
 
   // Get products for autocomplete
   const products = state.products?.list || [];
@@ -158,43 +161,62 @@ export function renderNavbar(state) {
           <div id="avatar-btn" class="avatar-container" style="cursor: pointer; position: relative; display: flex; align-items: center; gap: 6px;">
             ${
               user
-                ? `<a href="/pages/vip.html" class="vip-badge" title="View VIP Benefits" style="text-decoration: none; ${
-                    user.vipLevel && user.vipLevel > 0
-                      ? "background: linear-gradient(45deg, #d4af37, #f9e29c, #d4af37); background-size: 200% auto; animation: shine 3s linear infinite; box-shadow: 0 0 12px rgba(212, 175, 55, 0.4); color: #000;"
-                      : "background: rgba(100, 100, 100, 0.5); color: #ccc;"
-                  }">👑 ${user.vipLevel && user.vipLevel > 0 ? `V${user.vipLevel}` : "Member"}</a>`
-                : `<a href="/pages/login.html" class="vip-badge" title="Login to join VIP" style="text-decoration: none; background: rgba(100, 100, 100, 0.5); color: #ccc;">👑 Login</a>`
+                ? `<a href="/pages/vip.html" class="vip-badge ${
+                    user.vipLevel && user.vipLevel >= 10
+                      ? "vip-badge--vip10"
+                      : user.vipLevel && user.vipLevel > 0
+                        ? "vip-badge--vip"
+                        : "vip-badge--member"
+                  }" title="View VIP Benefits">👑 ${user.vipLevel && user.vipLevel > 0 ? `V${user.vipLevel}` : "Member"}</a>`
+                : `<a href="/pages/login.html" class="vip-badge vip-badge--guest" title="Login to join VIP">👑 Login</a>`
             }
             ${avatarHTML}
-            <div id="profile-dropdown" style="display: none; position: absolute; top: 50px; right: 0; width: 200px; background: rgba(42, 42, 42, 0.95); backdrop-filter: blur(20px); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; padding: 16px; animation: fadeIn 0.3s; border: 1px solid rgba(200, 155, 60, 0.2);">
+            <div id="profile-dropdown" style="display: none; position: absolute; top: 50px; right: 0; width: 220px; background: rgba(26, 26, 28, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(200, 155, 60, 0.2); border-radius: 15px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000;">
               ${
                 user
                   ? `
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
                   ${avatarHTML}
-                  <div id="nav-username" style="color: #fff; font-weight: 600;">${user.name}</div>
+                  <div style="flex: 1;">
+                    <small style="color: #888;">Logged in as</small>
+                    <div id="nav-username" style="color: #fff; font-weight: 600;">${user.name}</div>
+                  </div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <a href="/pages/profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+                <a href="/pages/profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+
                   <a href="/pages/orders.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">📦 My Orders</a>
+
                   <a href="/pages/deposit.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">💰 Deposit</a>
+
                   ${user.vipLevel && user.vipLevel > 0 ? `<a href="/pages/vip.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">👑 VIP Club</a>` : ""}
+
                   ${user.vipLevel && user.vipLevel > 0 ? `<a href="/pages/vip-products.html" style="color: #d4af37; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">✨ VIP Store</a>` : ""}
+
                   ${isAdmin ? `<a href="/pages/admin.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">⚙️ Admin Dashboard</a>` : ""}
+
                 </div>
+
               `
                   : `
+
                 <div style="display: flex; flex-direction: column; gap: 8px;">
+
                   <a href="/pages/profile.html" style="color: #ccc; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block;">👤 Profile</a>
+
                   <a href="/pages/login.html" style="color: #c89b3c; text-decoration: none; padding: 8px 0; transition: color 0.3s; display: block; font-weight: 600;">🔐 Login</a>
+
                 </div>
+
               `
               }
+
             </div>
+
           </div>
+
         </div>
-      </div>
     </nav>
+
   `;
 
   // Add hover effects for links
@@ -479,75 +501,38 @@ export function renderNavbar(state) {
   });
 
   // ===== VIP 10 EASTER EGG =====
-  // Rainbow text + Sparkles animation cho VIP 10 members
   if (user && user.vipLevel === 10) {
     const userNameEl = navRoot.querySelector(".vip-badge");
-    const avatarEl = navRoot.querySelector(
-      ".navbar-avatar, .navbar-avatar-fallback, .navbar-avatar-guest",
-    );
+    const avatarContainerEl = navRoot.querySelector("#avatar-btn");
 
-    // Rainbow Text Effect cho tên
     if (userNameEl) {
       userNameEl.classList.add("vip10-rainbow-text");
       userNameEl.textContent = `👑 VIP LEGEND 👑`;
-      userNameEl.style.display = "inline-block";
-      userNameEl.style.padding = "8px 12px";
-      userNameEl.style.borderRadius = "8px";
-      userNameEl.style.fontSize = "0.85rem";
+      userNameEl.classList.add("vip-badge--vip10");
     }
 
-    // Sparkles animation xung quanh Avatar
-    if (avatarEl) {
-      avatarEl.style.position = "relative";
-      avatarEl.classList.add("vip10-sparkles-container");
+    if (avatarContainerEl) {
+      let sparkleLayer = avatarContainerEl.querySelector(
+        ".vip10-sparkles-layer",
+      );
+      if (!sparkleLayer) {
+        sparkleLayer = document.createElement("span");
+        sparkleLayer.className = "vip10-sparkles-layer";
+        avatarContainerEl.appendChild(sparkleLayer);
 
-      // Tạo sparkle particles
-      const sparkleCount = 8;
-
-      for (let i = 0; i < sparkleCount; i++) {
-        const sparkle = document.createElement("div");
-        sparkle.classList.add("sparkle");
-        sparkle.style.position = "absolute";
-        sparkle.style.width = "6px";
-        sparkle.style.height = "6px";
-        sparkle.style.background = "radial-gradient(circle, #ffd700, #ffed4e)";
-        sparkle.style.borderRadius = "50%";
-        sparkle.style.boxShadow = "0 0 8px #ffd700";
-        sparkle.style.pointerEvents = "none";
-        sparkle.style.willChange = "transform, opacity";
-        avatarEl.appendChild(sparkle);
-
-        // Animation using requestAnimationFrame
-        const angle = (i / sparkleCount) * Math.PI * 2;
-        const distance = 35;
-
-        let time = 0;
-        const animate = () => {
-          time += 0.02;
-
-          const x = Math.cos(angle + time) * distance;
-          const y = Math.sin(angle + time) * distance;
-
-          // Opacity fluctuation (blink effect)
-          const opacityWave = (Math.sin(time * 3 + i) + 1) / 2;
-          const opacity = opacityWave * 0.8 + 0.2;
-
-          sparkle.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${opacity})`;
-          sparkle.style.opacity = opacity;
-
-          requestAnimationFrame(animate);
-        };
-
-        animate();
+        const sparkleCount = 10;
+        for (let i = 0; i < sparkleCount; i++) {
+          const sparkle = document.createElement("span");
+          sparkle.className = "sparkle";
+          sparkle.style.left = Math.random() * 100 + "%";
+          sparkle.style.top = Math.random() * 100 + "%";
+          sparkle.style.animationDelay = Math.random() * 2 + "s";
+          sparkleLayer.appendChild(sparkle);
+        }
       }
-
-      // Add crown and glow effect to avatar
-      avatarEl.style.boxShadow =
-        "0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.3)";
-      avatarEl.style.border = "3px solid #ffd700 !important";
     }
   }
-}
+} // Kết thúc hàm renderNavbar
 
 export function initNavbar() {
   renderNavbar(store.getState());

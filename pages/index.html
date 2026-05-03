@@ -184,58 +184,26 @@
         </div>
       </section>
 
-      <!-- ===== OUR GALLERY SECTION (MARQUEE) ===== -->
+      <!-- ===== MOMENTS OF EXCELLENCE SECTION (DYNAMIC) ===== -->
       <section class="gallery-section" id="gallery">
         <div class="section-header" data-scroll-reveal>
           <h2 class="section-title">Moments of Excellence</h2>
-          <p class="section-subtitle">See what our community treasures</p>
+          <p class="section-subtitle">
+            Featured products that define our craft
+          </p>
         </div>
 
-        <div class="marquee-container">
-          <div class="marquee" data-scroll-reveal>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-1.jpg" alt="Coffee moment 1" />
-                <p class="gallery-caption">The Perfect Pour</p>
-              </div>
-            </div>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-2.jpg" alt="Coffee moment 2" />
-                <p class="gallery-caption">Morning Ritual</p>
-              </div>
-            </div>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-3.jpg" alt="Coffee moment 3" />
-                <p class="gallery-caption">Latte Art</p>
-              </div>
-            </div>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-4.jpg" alt="Coffee moment 4" />
-                <p class="gallery-caption">Single Origin</p>
-              </div>
-            </div>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-5.jpg" alt="Coffee moment 5" />
-                <p class="gallery-caption">The Craft</p>
-              </div>
-            </div>
-            <!-- Duplicate for seamless loop -->
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-1.jpg" alt="Coffee moment 1" />
-                <p class="gallery-caption">The Perfect Pour</p>
-              </div>
-            </div>
-            <div class="marquee-item">
-              <div class="gallery-card">
-                <img src="./assets/images/coffee-2.jpg" alt="Coffee moment 2" />
-                <p class="gallery-caption">Morning Ritual</p>
-              </div>
-            </div>
+        <div id="moments-container" class="moments-grid" aria-live="polite">
+          <!-- Dynamically populated from Firestore -->
+          <div
+            style="
+              grid-column: 1/-1;
+              text-align: center;
+              padding: 40px;
+              color: #c89b3c;
+            "
+          >
+            ⏳ Loading moments...
           </div>
         </div>
       </section>

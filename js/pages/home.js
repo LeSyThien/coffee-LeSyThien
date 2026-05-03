@@ -663,11 +663,108 @@ export async function initElitePatrons() {
 
 // ===== INITIALIZATION =====
 // ✅ FIX: Chỉ chạy ONCE duy nhất - consolidate DOMContentLoaded logic
+/**
+ * Render Moments of Excellence - Featured products where showOnHome === true
+ * - Displays products in a premium grid layout
+ * - Shows discount badges if discount > 0
+ * - Uses object-fit: cover for consistent image sizing
+ * - Includes hover scale effect
+ */
+async function renderMomentsOfExcellence() {
+  const container = document.getElementById("moments-container");
+  if (!container) return;
+
+  try {
+    // Get products from store (already loaded by loadPremiumProducts)
+    const state = store.getState();
+    const allProducts = state.products?.list || [];
+
+    // Filter products where showOnHome === true
+    const momentsProducts = allProducts
+      .filter((p) => p.showOnHome === true)
+      .slice(0, 6);
+
+    if (momentsProducts.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #c89b3c;">
+          <p>✨ Featured moments coming soon...</p>
+        </div>
+      `;
+      return;
+    }
+
+    const html = momentsProducts
+      .map((product) => {
+        const discount = product.discount || 0;
+        const finalPrice = product.price * (1 - discount / 100);
+        const formattedOriginal = Math.floor(product.price).toLocaleString(
+          "vi-VN",
+        );
+        const formattedFinal = Math.floor(finalPrice).toLocaleString("vi-VN");
+
+        const placeholderUrl =
+          "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=500&h=500&fit=crop";
+        const imageUrl = product.image || placeholderUrl;
+
+        const discountBadge =
+          discount > 0
+            ? `<div class="moment-discount-badge">-${Math.floor(discount)}%</div>`
+            : "";
+
+        return `
+          <div class="moment-card" data-product-id="${product.id}">
+            <div class="moment-image-wrapper">
+              <img 
+                src="${imageUrl}" 
+                alt="${product.name}"
+                class="moment-image"
+                loading="lazy"
+                onerror="this.src='${placeholderUrl}'"
+              />
+              ${discountBadge}
+            </div>
+            <div class="moment-content">
+              <h3 class="moment-title">${product.name}</h3>
+              <p class="moment-category">${product.category || "Premium Coffee"}</p>
+              <div class="moment-price-group">
+                ${discount > 0 ? `<span class="moment-price-original">${formattedOriginal}đ</span>` : ""}
+                <span class="moment-price">${formattedFinal}đ</span>
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    container.innerHTML = html;
+
+    // Add click handlers to view product details
+    container.querySelectorAll(".moment-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const productId = card.getAttribute("data-product-id");
+        window.location.href = `/pages/product.html?id=${productId}`;
+      });
+    });
+  } catch (error) {
+    console.error("❌ Error rendering moments:", error);
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #999;">
+        <p>⚠️ Unable to load moments.</p>
+      </div>
+    `;
+  }
+}
+
 export function initHomePage() {
   // ✅ Chỉ call 1 lần từ index.html
   loadPremiumProducts();
   initElitePatrons();
   initVip10EasterEgg();
+
+  // ✅ NEW: Render Moments of Excellence after products are loaded
+  setTimeout(() => {
+    renderMomentsOfExcellence();
+  }, 500);
 }
 
 // Auto-init nếu file được load trực tiếp (không qua import)
